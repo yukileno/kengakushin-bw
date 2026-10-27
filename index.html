@@ -245,11 +245,11 @@
         <div><kbd>W A S D</kbd> あるく &nbsp; <kbd>マウス</kbd> 見まわす</div>
         <div><kbd>Space</kbd> ジャンプ &nbsp; <kbd>Shift</kbd> しゃがむ</div>
         <div><kbd>Ctrl</kbd> ダッシュ（はしる）</div>
-        <div><kbd>左クリック</kbd> ほる・たたかう（おしつづける）</div>
-        <div><kbd>右クリック</kbd> 置く・つかう・食べる &nbsp; (<kbd>R</kbd>キーでもOK)</div>
+        <div><kbd>M</kbd> こわす・たたかう（おしつづける） &nbsp; (<kbd>左クリック</kbd>でもOK)</div>
+        <div><kbd>N</kbd> 置く・つかう・食べる &nbsp; (<kbd>右クリック</kbd>・<kbd>R</kbd>でもOK)</div>
         <div><kbd>1〜9</kbd> / ホイール アイテムをえらぶ</div>
         <div><kbd>E</kbd> もちもの・クラフト &nbsp; <kbd>Q</kbd> すてる</div>
-        <div><kbd>M</kbd> もんだいを とく（ブロック学習の時間と素材をゲット）</div>
+        <div><kbd>T</kbd> もんだいを とく（ブロック学習の時間と素材をゲット）</div>
         <div><kbd>Esc</kbd> メニュー</div>
         <div>📱 タブレット：左のスティックで移動、画面をなぞって見まわす、タップで置く、長押しで壊す</div>
       </div>
@@ -282,6 +282,7 @@
       <div id="title-logo">思考力育成ブロックワールド</div>
       <div id="title-sub">もんだいを といて、ざいりょうを あつめよう！ サバイバル</div>
       <div id="flow"><b>✏️ もんだいを とく</b>→<b>🎁 ざいりょうを ゲット</b>→<b>⛏️ 10びょう ブロック学習</b></div>
+      <div class="row"><button class="btn big" id="btn-title-quiz">✏️ もんだいを とく</button></div>
       <div class="row">
         <button class="btn big" id="btn-play">⛏️ あたらしく はじめる</button>
         <button class="btn big" id="btn-continue">▶ つづきから</button>
@@ -2592,12 +2593,14 @@ const Input = {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (!this.keys[e.code]) {
         Events.emit('keypress', e.code, e);
-        if (e.code === 'KeyR' && this.locked) { this.buttons[2] = true; Events.emit('mousedown', 2); } // Chromebook など右クリックしにくい人向け
+        // Chromebook など、右クリックがない人向け：N（R でも可）＝置く・つかう・食べる、M＝壊す・たたかう
+        if ((e.code === 'KeyN' || e.code === 'KeyR') && this.locked) { this.buttons[2] = true; Events.emit('mousedown', 2); }
+        if (e.code === 'KeyM' && this.locked) { this.buttons[0] = true; Events.emit('mousedown', 0); }
       }
       this.keys[e.code] = true;
       if (['Space', 'Tab', 'F3', 'F1'].includes(e.code)) e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; if (e.code === 'KeyR') this.buttons[2] = false; });
+    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; if (e.code === 'KeyN' || e.code === 'KeyR') this.buttons[2] = false; if (e.code === 'KeyM') this.buttons[0] = false; });
     window.addEventListener('blur', () => { this.keys = {}; this.buttons = [false, false, false]; });
     document.addEventListener('mousemove', (e) => { if (this.locked) { this.dx += e.movementX; this.dy += e.movementY; } });
     canvas.addEventListener('mousedown', (e) => {
@@ -2781,7 +2784,7 @@ const Player = {
     else if (code === 'KeyW') { const now = performance.now(); if (now - p.lastWTap < 300 && p.hunger > 6) p.sprinting = true; p.lastWTap = now; }
     else if (code === 'KeyQ') Interaction.dropHeld(Input.keys.ControlLeft);
     else if (code === 'KeyF') Interaction.pickBlock();
-    else if (code === 'KeyM') Quiz.open('manual');
+    else if (code === 'KeyT') Quiz.open('manual');   // T＝もんだいを とく（M は「壊す」に使う）
   }
 };
 Events.on('keypress', (code) => Player.handleKey(code));
@@ -4385,6 +4388,13 @@ const Menus = {
       Game.start(seed, null);
     });
     $('btn-quiz').addEventListener('click', () => Quiz.open('manual'));
+    // タイトル画面から：セーブがあればつづきから、なければ あたらしく はじめて、読みこみが終わったら すぐ問題画面を開く
+    $('btn-title-quiz').addEventListener('click', async () => {
+      Game.openQuizFirst = true;
+      if (Save.hasSave()) { const d = await Save.loadData(); if (d) { Save.apply(d); return; } }
+      Game.mode = 'survival'; ChunkManager.setRenderDistance(parseInt($('rd-slider').value) || 5);
+      Game.start(String(Math.floor(Math.random() * 1e9)), null);
+    });
     $('btn-continue').addEventListener('click', async () => { const d = await Save.loadData(); if (d) Save.apply(d); else HUD.message('セーブデータがないよ'); });
     $('btn-continue').disabled = !Save.hasSave();
     $('btn-resume').addEventListener('click', () => Game.resume());
@@ -4507,7 +4517,7 @@ const Game = {
           if (this.freshSpawn) this.settleSpawn(); else if (Physics.intersects(player)) player.y = world.getHeight(floor(player.x), floor(player.z)) + 1;
           if (this.fresh) { this.fresh = false; Quiz.tips = true; }
           if (this.free) { Input.lock(); HUD.message('🎮 フリーモード：もんだいなし・セーブなし。Eで すべてのアイテム、スペースを2回おすと とべる（もういちどで おりる）。Shiftで さがる'); }
-          else if (BW2.sec <= 0) Quiz.open('start');
+          else if (BW2.sec <= 0 || this.openQuizFirst) { const first = this.openQuizFirst; this.openQuizFirst = false; Quiz.open(first ? 'manual' : 'start'); }
           else { Input.lock(); HUD.message('画面をクリックすると うごかせるよ'); }
         }
       } else if (!this.paused) {
@@ -4622,7 +4632,7 @@ const Quiz = {
     $('quiz-overlay').classList.add('hidden');
     Game.paused = false; $('pause').classList.add('hidden');
     window.focus();
-    if (this.tips) { this.tips = false; HUD.message(Game.touch ? '🌳 まず 木を長押しして「原木」をあつめよう' : '🌳 まず 木をたたいて「原木」をあつめよう（左クリックをおしつづける）'); HUD.message(Game.touch ? '📦 🎒ボタンで もちもの。原木 → 木材 → 作業台 → ツルハシ！' : '📦 Eキーで もちもの。原木 → 木材 → 作業台 → ツルハシ！'); HUD.message('✏️ 時間がなくなると もんだいが出るよ。とくと 素材と時間（10びょう）がもらえる！'); }
+    if (this.tips) { this.tips = false; HUD.message(Game.touch ? '🌳 まず 木を長押しして「原木」をあつめよう' : '🌳 まず 木をたたいて「原木」をあつめよう（Mキーをおしつづける）'); HUD.message(Game.touch ? '📦 🎒ボタンで もちもの。原木 → 木材 → 作業台 → ツルハシ！' : '📦 Eキーで もちもの。原木 → 木材 → 作業台 → ツルハシ！'); HUD.message('✏️ 時間がなくなると もんだいが出るよ（Tキーでも開けるよ）。とくと 素材と時間（10びょう）がもらえる！'); }
     const keys = Object.keys(BW2.pending);
     if (keys.length) { HUD.message('🎁 ゲット: ' + keys.map(n => Items.get(n).displayName + ' ×' + BW2.pending[n]).join('、')); BW2.pending = {}; }
     if (!player.dead) Input.lock();
@@ -4753,7 +4763,7 @@ const RecipeBook = {
     const pairs = [['iron_ore', 'iron_ingot'], ['gold_ore', 'gold_ingot'], ['sand', 'glass'], ['cobblestone', 'stone'], ['porkchop', 'cooked_porkchop'], ['beef', 'cooked_beef'], ['chicken', 'cooked_chicken'], ['mutton', 'cooked_mutton'], ['oak_log', 'charcoal']];
     for (const [a, b] of pairs) sm += `<div class="rc"><div class="rc-name"><img class="ic" alt="" src="${Atlas.getIcon(a)}">${Items.get(a).displayName}</div><span class="ar">→</span><div class="rc-name"><img class="ic" alt="" src="${Atlas.getIcon(b)}">${Items.get(b).displayName}</div></div>`;
     html += sm;
-    html += '<h2>5. 食べもの</h2><div class="rc-note">食べ物を持って 右クリック（またはRキー）をおしつづけると食べられるよ。生の肉より、かまどでやいた肉のほうが おなかがふくれる！</div>';
+    html += '<h2>5. 食べもの</h2><div class="rc-note">食べ物を持って Nキー（または右クリック）をおしつづけると食べられるよ。生の肉より、かまどでやいた肉のほうが おなかがふくれる！</div>';
     $('recipes-panel').innerHTML = html;
     $('btn-recipes-close').addEventListener('click', () => this.close());
     $('recipes').classList.remove('hidden');
