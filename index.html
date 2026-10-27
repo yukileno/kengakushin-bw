@@ -240,6 +240,10 @@
         <label>見えるきょり <input type="range" id="rd-slider" min="2" max="12" value="5"> <span id="rd-val">5</span>
           <span style="font-size:11px">（おもいときは ちいさく）</span></label>
       </div>
+      <div class="row">
+        <label>視点の速さ（マウス・タッチパッド） <input type="range" id="sens-slider" min="5" max="50" value="18"> <span id="sens-val">1.8</span>倍
+          <span style="font-size:11px">（遊んでいる間は [ キーで おそく、] キーで はやく）</span></label>
+      </div>
       <h2>ブロック学習のしかた</h2>
       <div class="controls">
         <div><kbd>W A S D</kbd> あるく &nbsp; <kbd>マウス</kbd> 見まわす</div>
@@ -2657,7 +2661,8 @@ const Player = {
     // Mouse look
     if (Input.locked && !Screens.isOpen()) {
       const [mx, my] = Input.consumeMouse();
-      p.yaw -= mx * this.SENS; p.pitch = clamp(p.pitch - my * this.SENS, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+      const sv = this.SENS * (Game.touch ? 1 : Sens.mult);   // 視点の速さ（キーボードモードだけ、設定でかえられる）
+      p.yaw -= mx * sv; p.pitch = clamp(p.pitch - my * sv, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
     } else Input.consumeMouse();
     // Mouse wheel scrolls the hotbar
     if (Input.wheel && controls) { p.hotbar = ((p.hotbar + Input.wheel) % 9 + 9) % 9; Input.wheel = 0; HUD.refreshHotbar(); } else Input.wheel = 0;
@@ -2792,6 +2797,8 @@ const Player = {
     else if (code === 'KeyW') { const now = performance.now(); if (now - p.lastWTap < 300 && p.hunger > 6) p.sprinting = true; p.lastWTap = now; }
     else if (code === 'KeyQ') Interaction.dropHeld(Input.keys.ControlLeft);
     else if (code === 'KeyF') Interaction.pickBlock();
+    else if (code === 'BracketLeft') Sens.adjust(-2);
+    else if (code === 'BracketRight') Sens.adjust(2);
     else if (code === 'KeyT') Quiz.open('manual');   // T＝もんだいを とく（M は「壊す」に使う）
   }
 };
@@ -4374,6 +4381,23 @@ const Save = {
   }
 };
 
+/* ---- 視点の速さ（キーボードモード）：Chromebook のタッチパッドでも、ゆったり まわせるように ---- */
+const Sens = {
+  v: 18, mult: 1.8,   // v は 10 で 1.0 倍（5〜50）
+  set(v, msg) {
+    this.v = Math.max(5, Math.min(50, Math.round(v))); this.mult = this.v / 10;
+    const sl = $('sens-slider'); if (sl) sl.value = this.v; const lb = $('sens-val'); if (lb) lb.textContent = this.mult.toFixed(1);
+    try { localStorage.setItem('kgkbw_sens', String(this.v)); } catch (e) { /* 保存できなくても動く */ }
+    if (msg) HUD.message('視点の速さ ' + this.mult.toFixed(1) + '倍');
+  },
+  adjust(d) { this.set(this.v + d, true); },
+  init() {
+    let v = 18; try { const x = parseInt(localStorage.getItem('kgkbw_sens')); if (x >= 5 && x <= 50) v = x; } catch (e) { /* ignore */ }
+    this.set(v, false);
+    $('sens-slider').addEventListener('input', (e) => this.set(parseInt(e.target.value), false));
+  }
+};
+
 /* ---- Menus / DOM wiring ----------------------------------------------------- */
 const Menus = {
   init() {
@@ -4428,6 +4452,7 @@ const Menus = {
     $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) Save.importFile(e.target.files[0]); e.target.value = ''; });
     $('btn-mode').addEventListener('click', () => Game.toggleMode());
     $('btn-newworld').addEventListener('click', () => { Save.save(true); Game.stop(); });
+    Sens.init();
     $('rd-slider').addEventListener('input', (e) => { ChunkManager.setRenderDistance(parseInt(e.target.value)); $('rd-val').textContent = e.target.value; });
     $('btn-respawn').addEventListener('click', () => Player.respawn());
     Events.on('unlock', () => {
