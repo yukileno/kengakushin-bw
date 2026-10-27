@@ -4551,16 +4551,17 @@ const Game = {
    ========================================================================== */
 const BW2 = {
   sec: 0, MAX: 180, PER_Q: 10, KINDS: 5, pending: {},
-  // [アイテム名, 個数, 出やすさ]  作ってある物ではなく、素材と食べ物だけ（クラフトで作る）
-  TABLE: [
-    ['oak_log', 3, 12], ['birch_log', 3, 8], ['spruce_log', 3, 8], ['cobblestone', 5, 14], ['dirt', 4, 6], ['sand', 4, 6], ['coal', 3, 11], ['wheat_seeds', 3, 5],
-    ['porkchop', 2, 6], ['beef', 2, 6], ['chicken', 2, 5], ['mutton', 2, 4], ['wheat', 3, 5], ['carrot', 2, 4], ['apple', 2, 4], ['iron_ore', 2, 10], ['string', 2, 4], ['feather', 2, 3], ['bone', 2, 2],
-    ['gold_ore', 1, 3], ['redstone', 3, 2], ['lapis_lazuli', 2, 1], ['leather', 2, 2], ['flint', 2, 2], ['pumpkin', 1, 1],
-    ['diamond', 1, 5]
-  ],
+  // 教科ごとに出る素材がちがう。[アイテム名, 個数, 出やすさ]
+  TABLES: {
+    '算数': [['oak_log', 3, 12], ['birch_log', 3, 8], ['spruce_log', 3, 8], ['cobblestone', 5, 14], ['coal', 3, 11], ['iron_ore', 2, 10], ['sand', 4, 6], ['dirt', 4, 6], ['flint', 2, 2]],   // 道具・家づくり
+    '社会': [['porkchop', 2, 6], ['beef', 2, 6], ['chicken', 2, 5], ['mutton', 2, 4], ['wheat', 3, 5], ['carrot', 2, 4], ['apple', 2, 4], ['pumpkin', 1, 1], ['wheat_seeds', 3, 5]],   // 食べ物
+    '国語': [['string', 2, 4], ['feather', 2, 3], ['leather', 2, 2], ['bone', 2, 2], ['gold_ore', 1, 3], ['lapis_lazuli', 2, 1]],   // 書く道具・かざり
+    'しりょう': [['redstone', 3, 2], ['gold_ore', 1, 3], ['lapis_lazuli', 2, 1], ['diamond', 1, 5], ['iron_ore', 2, 10]],   // めずらしい素材
+    'じっくり': [['diamond', 2, 5], ['gold_ore', 2, 3], ['redstone', 4, 2], ['lapis_lazuli', 3, 1], ['iron_ore', 3, 10]]   // いちばん貴重（個数も多い）
+  },
   /** 出やすさ（重み）で、ちがう種類を n こ えらぶ（同じ素材は1問に1回だけ） */
-  rollMany(n) {
-    const pool = this.TABLE.slice(), out = [];
+  rollMany(n, sub) {
+    const pool = (this.TABLES[sub] || this.TABLES['算数']).slice(), out = [];
     while (out.length < n && pool.length) {
       let total = 0; for (const e of pool) total += e[2];
       let r = Math.random() * total, i = 0;
@@ -4571,10 +4572,10 @@ const BW2 = {
   },
   state() { return { sec: Math.floor(this.sec), max: this.MAX }; },
   /** 正解した数(units)だけ、素材（1問ごとに5種類）と +10秒（さいだい3分）をわたす。quiz から呼ばれる */
-  reward(units) {
+  reward(units, sub) {
     const got = {}; let added = 0;
     for (let u = 0; u < units; u++) {
-      for (const r of this.rollMany(this.KINDS)) {   // 1問正解ごとに、ちがう種類を KINDS こ
+      for (const r of this.rollMany(this.KINDS, sub)) {   // 1問正解ごとに、ちがう種類を KINDS こ
         const left = Inventory.addToPlayer({ name: r.item, count: r.count });
         if (left > 0) Entities.spawnItem(player.x, player.y + 1, player.z, { name: r.item, count: left });
         got[r.item] = (got[r.item] || 0) + r.count; this.pending[r.item] = (this.pending[r.item] || 0) + r.count;

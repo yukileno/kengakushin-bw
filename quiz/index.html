@@ -297,9 +297,9 @@ function updateBar() {
   $('#gplay').disabled = st.sec <= 0;
   $('#gnote').textContent = st.sec <= 0 ? '1問 正解すると 10びょう ブロック学習できるよ！' : '';
 }
-function giveReward() {   // 1問 正解するたびに、ゲーム側へ「素材＋10びょう」をたのむ
+function giveReward(sub) {   // 1問 正解するたびに、ゲーム側へ「素材＋10びょう」をたのむ
   const g = GAME(); let r = null;
-  try { if (g) r = g.reward(1); } catch (e) { /* ゲームが読めないときは何もしない */ }
+  try { if (g) r = g.reward(1, sub); } catch (e) { /* ゲームが読めないときは何もしない */ }
   updateBar();
   if (!r) return '';
   const items = r.got.map(x => `${esc(x.name)} ×${x.count}`).join('、');
@@ -387,7 +387,7 @@ function result(it, ok) {
   } else {
     R.streak = 0; schedule(it, 1, 3);                // まちがえた → 3問あとにまた出す
   }
-  if (ok) R.rw = giveReward();
+  if (ok) R.rw = giveReward(R.subject);
   saveStats();
 }
 
@@ -727,7 +727,7 @@ function jkBind() {
     if (!allOk && !empty) miss();
     if (allOk && !JKDONE.has(p.key)) {   // はじめて完成したときだけ、記録する（1回でできたら ○、まちがいがあれば ×）
       JKDONE.add(p.key); const ok = st.mistakes === 0;
-      bump(stats.unit, 'じっくり' + p.unit, ok); bump(stats.q, p.key, ok); st.rw = giveReward(); saveStats();
+      bump(stats.unit, 'じっくり' + p.unit, ok); bump(stats.q, p.key, ok); st.rw = giveReward('じっくり'); saveStats();
     }
     jkRender();
   });
