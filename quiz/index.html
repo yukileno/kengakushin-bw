@@ -146,7 +146,7 @@ table.t th{background:#eef1f5;font-weight:600}
 </style>
 </head>
 <body>
-<div class="gbar" id="gbar"><span class="gpill" id="gtime">⏱ 0:00</span><span class="gnote" id="gnote"></span><button class="primary" id="gplay" type="button">⛏️ あそぶ ▶</button></div>
+<div class="gbar" id="gbar"><span class="gpill" id="gtime">⏱ 0:00</span><span class="gnote" id="gnote"></span><button class="primary" id="gplay" type="button">⛏️ ブロック学習 ▶</button></div>
 <div id="app"></div>
 
 <script>
@@ -295,7 +295,7 @@ function updateBar() {
   let st = { sec: 0 }; try { st = g.state(); } catch (e) { /* ゲームが読めないときは0 */ }
   $('#gtime').textContent = '⏱ ' + mmss(st.sec);
   $('#gplay').disabled = st.sec <= 0;
-  $('#gnote').textContent = st.sec <= 0 ? '1問 正解すると 10びょう あそべるよ！' : '';
+  $('#gnote').textContent = st.sec <= 0 ? '1問 正解すると 10びょう ブロック学習できるよ！' : '';
 }
 function giveReward() {   // 1問 正解するたびに、ゲーム側へ「素材＋10びょう」をたのむ
   const g = GAME(); let r = null;
@@ -326,7 +326,7 @@ function home() {
   app.innerHTML = `
   <div class="homewrap">
     <h1>思考力育成ブロックワールド</h1>
-    <p class="lead">やりたい 教科を 押してね。1問 正解すると、ブロックワールドで 10びょう あそべるよ！</p>
+    <p class="lead">やりたい 教科を 押してね。1問 正解すると、ブロックワールドで 10びょう ブロック学習できるよ！</p>
     <div class="bigbtns">${en.map(k => { const n = pend.filter(p => p.sub === k).length; return `<button class="bigbtn ${BTN[k][0]}" data-sub="${k}"><span class="${BTN[k][1]}">${lab(k)}</span>${n ? `<small>まちがい直し ${n}問</small>` : ''}</button>`; }).join('')}</div>
   </div>`;
   app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { const sub = b.dataset.sub; sub === 'じっくり' ? jkList() : begin(sub); });

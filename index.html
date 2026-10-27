@@ -9,7 +9,7 @@
 <!--
   ============================================================================
   思考力育成ブロックワールド — Voxelcraft（MIT, BridgeMind）をもとにした、県学診の問題でためるサバイバル版
-  県学診の問題を解くとあそぶ時間と素材がもらえる。BW2 / Quiz / RecipeBook は末尾の「BLOCKWORLD2」を見る。
+  県学診の問題を解くとブロック学習の時間と素材がもらえる。BW2 / Quiz / RecipeBook は末尾の「BLOCKWORLD2」を見る。
   ----------------------------------------------------------------------------
   Dependencies (CDN only, no build step):
     * Three.js r128 (UMD build, exposes global THREE)
@@ -231,7 +231,7 @@
     <div class="panel" style="min-width: 520px;">
       <h1>メニュー</h1>
       <div class="row">
-        <button class="btn" id="btn-resume">ゲームにもどる</button>
+        <button class="btn" id="btn-resume">ブロック学習にもどる</button>
         <button class="btn" id="btn-quiz">✏️ もんだいを とく</button>
         <button class="btn" id="btn-save">セーブする</button>
         <button class="btn" id="btn-newworld">タイトルにもどる</button>
@@ -240,7 +240,7 @@
         <label>見えるきょり <input type="range" id="rd-slider" min="2" max="12" value="5"> <span id="rd-val">5</span>
           <span style="font-size:11px">（おもいときは ちいさく）</span></label>
       </div>
-      <h2>あそびかた</h2>
+      <h2>ブロック学習のしかた</h2>
       <div class="controls">
         <div><kbd>W A S D</kbd> あるく &nbsp; <kbd>マウス</kbd> 見まわす</div>
         <div><kbd>Space</kbd> ジャンプ &nbsp; <kbd>Shift</kbd> しゃがむ</div>
@@ -249,7 +249,7 @@
         <div><kbd>右クリック</kbd> 置く・つかう・食べる &nbsp; (<kbd>R</kbd>キーでもOK)</div>
         <div><kbd>1〜9</kbd> / ホイール アイテムをえらぶ</div>
         <div><kbd>E</kbd> もちもの・クラフト &nbsp; <kbd>Q</kbd> すてる</div>
-        <div><kbd>M</kbd> もんだいを とく（あそぶ時間と素材をゲット）</div>
+        <div><kbd>M</kbd> もんだいを とく（ブロック学習の時間と素材をゲット）</div>
         <div><kbd>Esc</kbd> メニュー</div>
         <div>📱 タブレット：左のスティックで移動、画面をなぞって見まわす、タップで置く、長押しで壊す</div>
       </div>
@@ -272,7 +272,7 @@
       <h1 style="color:#a00">やられてしまった…</h1>
       <p id="death-cause" style="font-size:15px"></p>
       <p style="font-size:14px">もちものは そのままだよ。</p>
-      <button class="btn big" id="btn-respawn">もういちど あそぶ</button>
+      <button class="btn big" id="btn-respawn">もういちど ブロック学習</button>
     </div>
   </div>
 
@@ -281,7 +281,7 @@
     <div class="panel">
       <div id="title-logo">思考力育成ブロックワールド</div>
       <div id="title-sub">もんだいを といて、ざいりょうを あつめよう！ サバイバル</div>
-      <div id="flow"><b>✏️ もんだいを とく</b>→<b>🎁 ざいりょうを ゲット</b>→<b>⛏️ 10びょう あそべる</b></div>
+      <div id="flow"><b>✏️ もんだいを とく</b>→<b>🎁 ざいりょうを ゲット</b>→<b>⛏️ 10びょう ブロック学習</b></div>
       <div class="row">
         <button class="btn big" id="btn-play">⛏️ あたらしく はじめる</button>
         <button class="btn big" id="btn-continue">▶ つづきから</button>
@@ -4542,7 +4542,7 @@ const Game = {
 };
 
 /* ============================================================================
-   KGKBW — 県学診でためる「あそび時間」と、ごほうびの素材
+   KGKBW — 県学診でためる「ブロック学習の時間」と、ごほうびの素材
    ----------------------------------------------------------------------------
    BW2   : 残り時間（さいだい3分）、正解のごほうび（素材）。quiz/ の iframe から window.BW2 をよぶ
    Quiz  : 県学診の問題の画面（iframe）の開け閉め。開いている間はゲームを止める
@@ -4577,9 +4577,9 @@ const BW2 = {
     }
     return { got: Object.keys(got).map(n => ({ name: Items.get(n).displayName, count: got[n] })), added: Math.round(added), full: this.sec >= this.MAX };
   },
-  /** あそんでいる間だけ減る（もんだい・もちもの・メニュー中は減らない） */
+  /** ブロック学習している間だけ減る（もんだい・もちもの・メニュー中は減らない） */
   tick(dt) {
-    if (Game.free || Quiz.active || Game.paused || !Input.locked) return; // マウスがロックされているとき（＝あそんでいるとき）だけ減る
+    if (Game.free || Quiz.active || Game.paused || !Input.locked) return; // マウスがロックされているとき（＝ブロック学習しているとき）だけ減る
     this.sec = Math.max(0, this.sec - dt);
     if (this.sec <= 0) Quiz.open('timeup');
   },
@@ -4756,7 +4756,7 @@ const RecipeBook = {
 
 /* ---- 新しいバージョンの自動チェック（タブを開きっぱなしの端末向け）----
    index.html の公開時刻(Last-Modified/ETag)が読みこみ時から変わっていたら、タイトル画面なら自動で再読みこみ、
-   あそんでいる最中は「いま更新する」ボタンを出す。取れなかったときは何もしない。 */
+   ブロック学習している最中は「いま更新する」ボタンを出す。取れなかったときは何もしない。 */
 const UpdateCheck = {
   base: null, notified: false,
   // いま開いているページ自身の署名（ブラウザのキャッシュに残っている、読みこんだときのもの）。古いキャッシュのページを開いてしまっていても検出できる
@@ -4782,7 +4782,7 @@ const UpdateCheck = {
     if (sig === this.base) return;
     this.notified = true;
     if (!Game.running) { this.go(); return; }
-    // あそんでいる最中は マウスがロックされていてボタンをおせないので、ボタンなしで自動で更新する（セーブは beforeunload でされる）
+    // ブロック学習している最中は マウスがロックされていてボタンをおせないので、ボタンなしで自動で更新する（セーブは beforeunload でされる）
     try { HUD.message('🆕 新しいバージョン！ 自動で更新するよ…'); } catch (e) { /* ignore */ }
     setTimeout(() => this.go(), 1500);
   },
