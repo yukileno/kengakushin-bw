@@ -4839,7 +4839,8 @@ const UpdateCheck = {
     setTimeout(() => this.go(), 1500);
   },
   // キャッシュをさけるため、毎回ちがうURLで読みこみなおす
-  go() { location.replace(location.pathname + '?r=' + Date.now()); },
+  url() { return location.pathname + '?r=' + Date.now() + location.hash; },   // #teacher など、# 以降は引きつぐ
+  go() { location.replace(this.url()); },
   init() {
     this.check();
     setInterval(() => this.check(), 3 * 60 * 1000);
