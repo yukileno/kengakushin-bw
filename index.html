@@ -4821,8 +4821,17 @@ const UpdateCheck = {
     if (this.notified) return;
     const sig = await this.signature();
     if (!sig || sig === '|') return;
-    if (this.base === null) { const own = await this.loadedSignature(); this.base = own && own !== '|' ? own : sig; if (this.base === sig) return; }
+    if (this.base === null) {
+      // 更新で再読みこみしたばかり（?r=）のときは、いまの値を基準にする（公開直後は、サーバーごとに版がずれて、くり返し再読みこみしてしまうため）
+      const justReloaded = /[?&]r=\d+/.test(location.search);
+      const own = justReloaded ? null : await this.loadedSignature();
+      this.base = own && own !== '|' ? own : sig; if (this.base === sig) return;
+    }
     if (sig === this.base) return;
+    // 10分以内に、もう更新したときは、くり返さない（無限ループ防止）
+    let last = 0; try { last = +sessionStorage.getItem('kgkbw_upd') || 0; } catch (e) { /* ignore */ }
+    if (Date.now() - last < 10 * 60 * 1000) return;   // 基準はそのまま。10分たってから、もう一度ためす
+    try { sessionStorage.setItem('kgkbw_upd', String(Date.now())); } catch (e) { /* ignore */ }
     this.notified = true;
     if (!Game.running) { this.go(); return; }
     // ブロック学習している最中は マウスがロックされていてボタンをおせないので、ボタンなしで自動で更新する（セーブは beforeunload でされる）
