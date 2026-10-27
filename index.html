@@ -2595,13 +2595,16 @@ const Input = {
         Events.emit('keypress', e.code, e);
         // Chromebook など、右クリックがない人向け：N（R でも可）＝置く・つかう・食べる、M＝壊す・たたかう
         if ((e.code === 'KeyN' || e.code === 'KeyR') && this.locked) { this.buttons[2] = true; Events.emit('mousedown', 2); }
-        if (e.code === 'KeyM' && this.locked) { this.buttons[0] = true; Events.emit('mousedown', 0); }
+        if (e.code === 'KeyM' && this.locked) { this.buttons[0] = true; this.mPending = false; this.mStart = { n: Interaction.brokeCount, t: performance.now() }; Events.emit('mousedown', 0); }
       }
       this.keys[e.code] = true;
       if (['Space', 'Tab', 'F3', 'F1'].includes(e.code)) e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; if (e.code === 'KeyN' || e.code === 'KeyR') this.buttons[2] = false; if (e.code === 'KeyM') this.buttons[0] = false; });
-    window.addEventListener('blur', () => { this.keys = {}; this.buttons = [false, false, false]; });
+    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; if (e.code === 'KeyN' || e.code === 'KeyR') this.buttons[2] = false; if (e.code === 'KeyM') {   // 1回 ポンとおしただけでも、1つ壊れるまで つづける（おしつづけたときは、はなすまで どんどん壊す）
+        if (this.mStart && Interaction.brokeCount === this.mStart.n) this.mPending = true; else { this.buttons[0] = false; this.mStart = null; }
+      }
+    });
+    window.addEventListener('blur', () => { this.keys = {}; this.buttons = [false, false, false]; this.mPending = false; this.mStart = null; });
     document.addEventListener('mousemove', (e) => { if (this.locked) { this.dx += e.movementX; this.dy += e.movementY; } });
     canvas.addEventListener('mousedown', (e) => {
       if (!this.locked) { if (Game.running && !Screens.isOpen() && !Game.paused) this.lock(); return; }
@@ -2792,7 +2795,7 @@ Events.on('keypress', (code) => Player.handleKey(code));
    12. INTERACTION — raycasting, mining, placing, using blocks and items
    ========================================================================== */
 const Interaction = {
-  aim: null, target: null, targetMob: null, breaking: null, highlight: null, crack: null, crackTextures: [],
+  brokeCount: 0, aim: null, target: null, targetMob: null, breaking: null, highlight: null, crack: null, crackTextures: [],
   useCooldown: 0, attackCooldown: 0, eatTimer: 0, tmpBox: { x: 0, y: 0, z: 0, w: 0.5, h: 1 },
 
   init(scene) {
@@ -2875,6 +2878,11 @@ const Interaction = {
       this.highlight.scale.set(b[3] - b[0], b[4] - b[1], b[5] - b[2]);
       this.highlight.visible = true;
     } else this.highlight.visible = false;
+    // M を ポンとおして はなしたあとも、壊れる（たたく）まで つづけてから、はなす
+    if (Input.mPending) {
+      const el = (performance.now() - Input.mStart.t) / 1000;
+      if (this.brokeCount !== Input.mStart.n || el > 4 || (this.targetMob ? el > 0.4 : (!this.breaking && el > 0.15))) { Input.mPending = false; Input.mStart = null; Input.buttons[0] = false; }
+    }
     // Left button: attack or mine
     if (active && Input.buttons[0]) {
       if (this.targetMob) { this.breaking = null; this.attack(this.targetMob); }
@@ -2901,13 +2909,14 @@ const Interaction = {
   mine(dt) {
     const t = this.target, def = world.getDef(t.x, t.y, t.z);
     if (def.id === AIR) { this.breaking = null; return; }
-    if (Player.isCreative()) { if (this.useCooldown <= -0.15 || !this.breaking) { this.breakBlock(t.x, t.y, t.z, false); this.breaking = { x: t.x, y: t.y, z: t.z, progress: 0 }; this.useCooldown = 0; } return; }
+    if (Player.isCreative()) { if (this.useCooldown <= -0.15 || !this.breaking) { this.brokeCount++; this.breakBlock(t.x, t.y, t.z, false); this.breaking = { x: t.x, y: t.y, z: t.z, progress: 0 }; this.useCooldown = 0; } return; }
     if (!this.breaking || this.breaking.x !== t.x || this.breaking.y !== t.y || this.breaking.z !== t.z) this.breaking = { x: t.x, y: t.y, z: t.z, progress: 0 };
     const time = breakTime(def, Player.held());
     if (time === Infinity) { this.breaking.progress = 0; return; }
     this.breaking.progress += dt / time;
     if (Math.random() < dt * 6) Particles.blockBreak(t.x, t.y, t.z, def, 2);
     if (this.breaking.progress >= 1) {
+      this.brokeCount++;
       this.breakBlock(t.x, t.y, t.z, true);
       Inventory.damageHeldTool();
       this.breaking = null;
