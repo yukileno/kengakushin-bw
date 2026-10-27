@@ -1,0 +1,29 @@
+# 県学診ブロックワールド
+
+愛媛県学力診断調査（県学診）の練習問題を解くと、**1問正解ごとにブロックワールドを10秒あそべる**アプリです（素材もいっしょにもらえます）。
+ためておける時間は最大3分。時間がゼロになると、自動で問題画面が出ます。`M` キーでいつでも問題を解けます。
+
+- `index.html` … ゲーム本体（[BlockWorld2](https://github.com/yukileno/BlockWorld2) をもとにしたサバイバル型ブロックゲーム）
+- `quiz/` … 県学診の問題画面（ゲームの上に重ねて出る）。問題は [kengakushin-practice](https://github.com/yukileno/kengakushin-practice) と同じ
+  - `quiz/data/` … 算数・社会・国語・資料の読み取り・全国学力テストへの道の問題データ
+- 達成率・ドット絵・ロックはありません（ごほうびは「あそび時間」だけ）
+
+## 教科を増やすとき（1教科ずつ公開）
+
+`quiz/index.html` の `const ENABLED = ['算数'];` に教科名（算数・社会・国語・しりょう・じっくり）を足して公開します。
+ローカルでは `quiz/index.html?s=all` のように開くと、公開前の教科も試せます。
+
+## 先生用（記録・設定）
+
+`quiz/index.html#teacher` を直接開きます（正答率・まちがえた問題・CSV保存）。記録はこの端末のブラウザの中だけに保存され、外には送りません。
+
+## ローカルで動かす
+
+```sh
+python -m http.server 5174
+# http://127.0.0.1:5174/ を開く
+```
+
+## クレジット
+
+ゲーム本体は Voxelcraft（MIT License, Copyright (c) 2026 BridgeMind）がもと。`LICENSE` を参照。
