@@ -60,10 +60,10 @@
 
   /* ----- HUD ------------------------------------------------------------ */
   #hud { position: absolute; inset: 0; pointer-events: none; }
-  #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); mix-blend-mode: difference; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -50%); mix-blend-mode: difference; pointer-events: none; }
   #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff; }
-  #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
-  #crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+  #crosshair::before { left: 50%; top: 0; width: 3px; height: 100%; transform: translateX(-50%); }
+  #crosshair::after { top: 50%; left: 0; height: 3px; width: 100%; transform: translateY(-50%); }
   #debug { position: absolute; left: 8px; top: 8px; font-size: 12px; line-height: 16px; color: #fff; text-shadow: 1px 1px #000; white-space: pre; background: rgba(0,0,0,0.25); padding: 4px 6px; }
   #msgs { position: absolute; left: 8px; bottom: 120px; font-size: 13px; text-shadow: 1px 1px #000; max-width: 45%; }
   #msgs div { background: rgba(0,0,0,0.35); padding: 2px 6px; margin-top: 2px; animation: fadeout 6s forwards; }
@@ -174,6 +174,8 @@
   body.touch-on, body.touch-on #app { touch-action: none; -webkit-touch-callout: none; }
   body.touch-on #hotbar { pointer-events: auto; }
   body.touch-on #crosshair { display: none; }
+  /* キーボード＋マウス（PC版マイクラと同じ）：ゲーム画面ではマウスの矢印を消して、中央のクロスヘアでねらう */
+  body:not(.touch-on) #gl { cursor: none; }
   body.touch-on #hotbar .hslot { width: 54px; height: 54px; }
   body.touch-on #msgs { left: 200px; bottom: 90px; max-width: 34%; }
   #touch { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
@@ -4667,7 +4669,7 @@ const Quiz = {
 
 /* ---- タブレットモード：左スティックで移動、なぞって見まわす、タップで置く、長押しで壊す ---- */
 const TouchUI = {
-  enabled() { try { const v = localStorage.getItem('kgkbw_touch'); if (v !== null) return v === '1'; } catch (e) { /* ignore */ } return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); },
+  enabled() { try { const v = localStorage.getItem('kgkbw_touch'); if (v !== null) return v === '1'; } catch (e) { /* ignore */ } return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches); },   // マウス・タッチパッドがある端末（Chromebook など）は、最初からキーボードモード
   set(on) { try { localStorage.setItem('kgkbw_touch', on ? '1' : '0'); } catch (e) { /* ignore */ } this.label(); },
   label() { const b = $('btn-touch'); const on = this.enabled(); b.textContent = '📱 タブレットモード：' + (on ? 'オン' : 'オフ'); b.classList.toggle('on', on); },
   refresh() {
