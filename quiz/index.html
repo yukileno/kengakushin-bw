@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>県学診ブロックワールド もんだい</title>
+<title>思考力育成ブロックワールド もんだい</title>
 <style>
 :root{
   --bg:#f4f7fb; --card:#ffffff; --ink:#1d2733; --sub:#5b6b7c; --line:#d5dee8;
@@ -325,7 +325,7 @@ function home() {
   const en = enabledSubjects().filter(k => BTN[k]);
   app.innerHTML = `
   <div class="homewrap">
-    <h1>県学診ブロックワールド</h1>
+    <h1>思考力育成ブロックワールド</h1>
     <p class="lead">やりたい 教科を 押してね。1問 正解すると、ブロックワールドで 10びょう あそべるよ！</p>
     <div class="bigbtns">${en.map(k => { const n = pend.filter(p => p.sub === k).length; return `<button class="bigbtn ${BTN[k][0]}" data-sub="${k}"><span class="${BTN[k][1]}">${lab(k)}</span>${n ? `<small>まちがい直し ${n}問</small>` : ''}</button>`; }).join('')}</div>
   </div>`;
