@@ -4842,6 +4842,7 @@ const UpdateCheck = {
   url() { return location.pathname + '?r=' + Date.now() + location.hash; },   // #teacher など、# 以降は引きつぐ
   go() { location.replace(this.url()); },
   init() {
+    if (location.hash === '#teacher') return;   // 先生用（#teacher）では、自動で再読みこみしない
     this.check();
     setInterval(() => this.check(), 3 * 60 * 1000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) this.check(); });
