@@ -288,6 +288,11 @@
         <button class="btn big" id="btn-continue">▶ つづきから</button>
       </div>
       <div class="row"><button class="btn" id="btn-touch">📱 タブレットモード：オフ</button></div>
+      <!-- 先生用（アドレスの末尾に #teacher を付けたときだけ出る） -->
+      <div id="teacher-box" class="hidden">
+        <div class="row"><button class="btn" id="btn-free">🎮 先生用：フリーで建築（もんだいなし・セーブなし）</button></div>
+        <div style="font-size:12px;margin-top:6px">🎨 リソースパック（.zip）を 下の枠に ドラッグ、または ファイルをえらぶ</div>
+      </div>
       <div class="hidden">
         <input type="text" id="seed-input"><select id="mode-select"><option value="survival">s</option></select><input type="number" id="rd-input" value="5">
         <div id="dropzone"><input type="file" id="pack-file"><div id="packstatus"></div></div>
@@ -4397,6 +4402,16 @@ const Menus = {
       Game.start(seed, null);
     });
     $('btn-quiz').addEventListener('click', () => Quiz.open('manual'));
+    // 先生用：#teacher を付けて開くと、フリーで建築（クリエイティブ）とリソースパックの読みこみが出る
+    const teacherBox = () => {
+      const on = location.hash === '#teacher', box = $('teacher-box'); box.classList.toggle('hidden', !on);
+      if (on) box.appendChild($('dropzone'));   // 読みこみの枠を、先生用の場所に出す
+    };
+    teacherBox(); window.addEventListener('hashchange', teacherBox);
+    $('btn-free').addEventListener('click', () => {
+      Game.mode = 'creative'; ChunkManager.setRenderDistance(parseInt($('rd-slider').value) || 5);
+      Game.start(String(Math.floor(Math.random() * 1e9)), null, true);
+    });
     // タイトル画面から：セーブがあればつづきから、なければ あたらしく はじめて、読みこみが終わったら すぐ問題画面を開く
     $('btn-title-quiz').addEventListener('click', async () => {
       Game.openQuizFirst = true;
