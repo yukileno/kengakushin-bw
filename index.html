@@ -3617,6 +3617,8 @@ const MOB_TYPES = {
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
 
 const Mobs = {
+  HOSTILE_MAX: 6,        // 同時に いる 敵の さいだい数（元は 26。夜に出すぎないよう へらした）
+  HOSTILE_EVERY: 20,    // 敵が出るか ためす間かく（tick。20 で 1秒に1回。元は 2）
   list: [], scene: null, faceTex: new Map(),
   init(scene) { this.scene = scene; },
   clear() { for (const m of this.list) this.scene.remove(m.mesh); this.list.length = 0; },
@@ -3737,7 +3739,7 @@ const Mobs = {
       }
     }
     // Hostile spawning in darkness
-    if (hostile < 26 && Scheduler.tick % 2 === 0) {
+    if (hostile < this.HOSTILE_MAX && Scheduler.tick % this.HOSTILE_EVERY === 0) {
       const x = floor(p.x) + rng.irange(-48, 48), z = floor(p.z) + rng.irange(-48, 48);
       const c = world.chunkAt(x, z);
       if (c && c.state >= CH_LIT) {
@@ -3745,10 +3747,10 @@ const Mobs = {
         const y = rng.chance(0.5) ? surface : rng.irange(5, Math.max(6, surface));
         const d = Math.sqrt(dist2(x, y, z, p.x, p.y, p.z));
         if (d > 24 && d < 70) {
-          const type = rng.pick(['zombie', 'zombie', 'skeleton', 'creeper']);
+          const type = rng.pick(['zombie', 'zombie', 'zombie', 'skeleton', 'skeleton', 'creeper']);   // クリーパーは少なめ
           if (this.canStand(x, y, z, MOB_TYPES[type]) && world.getLightLevel(x, y, z, Sky.dayFactor) < 8 && !world.getDef(x, y - 1, z).liquid) {
-            const n = rng.irange(1, 3);
-            for (let i = 0; i < n; i++) { const sx = x + rng.irange(-2, 2), sz = z + rng.irange(-2, 2); if (this.canStand(sx, y, sz, MOB_TYPES[type])) this.spawnMob(type, sx + 0.5, y, sz + 0.5); }
+            const n = rng.irange(1, 2);
+            for (let i = 0; i < n && hostile + i < this.HOSTILE_MAX; i++) { const sx = x + rng.irange(-2, 2), sz = z + rng.irange(-2, 2); if (this.canStand(sx, y, sz, MOB_TYPES[type])) this.spawnMob(type, sx + 0.5, y, sz + 0.5); }
           }
         }
       }
@@ -3761,7 +3763,7 @@ const Mobs = {
         if (dist2(x, y, z, p.x, p.y, p.z) > 256) continue;
         if (--t.cooldown > 0) continue;
         t.cooldown = 200 + rng.int(600);
-        if (hostile > 30) continue;
+        if (hostile > this.HOSTILE_MAX + 4) continue;
         for (let k = 0; k < 4; k++) { const sx = x + rng.irange(-4, 4), sz = z + rng.irange(-4, 4), sy = y + rng.irange(-1, 1); if (this.canStand(sx, sy, sz, MOB_TYPES[t.mob])) { this.spawnMob(t.mob, sx + 0.5, sy, sz + 0.5); Particles.burst(sx + 0.5, sy + 1, sz + 0.5, 10, [0.9, 0.9, 0.9]); if (rng.chance(0.5)) break; } }
       }
     }
