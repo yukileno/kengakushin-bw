@@ -99,6 +99,10 @@ ul.miss li{margin-bottom:8px}
 .q.sm{font-size:1.15rem;line-height:1.8}
 .choices.long button.choice{font-size:1rem}
 .fig .intro{margin:0 0 6px}
+.pas{border:2px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 10px;background:#fcfcfd;font-size:1.02rem;line-height:1.9}
+.pas h3{font-size:1rem;margin:0 0 6px}
+.pas p{margin:4px 0}
+.tmode{display:inline-block;background:#fff7d6;border:2px solid #e0b300;border-radius:999px;padding:4px 14px;margin:0 0 10px;font-size:.85rem}
 .shiryo{border:2px solid var(--line);border-radius:10px;padding:8px 12px;margin:10px 0;background:#fcfcfd}
 .shiryo h3{font-size:.95rem;margin:0 0 4px}
 .shiryo p{margin:4px 0}
@@ -152,7 +156,7 @@ table.t th{background:#eef1f5;font-weight:600}
 <script>
 // 新しいバージョンのとき、古いキャッシュを読まないよう、ゲーム本体が付けた ?v=… をデータにも付ける
 var V = encodeURIComponent(location.search || Date.now());
-['math', 'social', 'kokugo', 'shiryo', 'jikkuri'].forEach(function (n) { document.write('<script src="data/' + n + '.js?' + V + '"><\/script>'); });
+['math', 'social', 'kokugo', 'yomi', 'shiryo', 'jikkuri'].forEach(function (n) { document.write('<script src="data/' + n + '.js?' + V + '"><\/script>'); });
 </script>
 <script>
 'use strict';
@@ -265,8 +269,8 @@ const SQ = Object.fromEntries(SOCIAL.concat(KOKUGO, SHIRYO).map(q => [q.key, q])
 function wordQ(q) {   // 社会・国語（一問一答・選択式）
   if (q.kind === 'choice') return { kind: 'choice', html: esc(q.text), ans: q.ans, alt: [], choices: shuffle(q.choices), unit: '', explain: esc(q.explain), key: q.key, fig: q.fig || '', figFirst: !!q.figFirst, hint: q.hint || '', long: q.choices.some(c => c.length > 30) };
   // 答えがぜんぶひらがなの問題（漢字の読みなど）は、予測変換が出ないよう、アプリ内のひらがなキーボードで入力する
-  const kana = !q.isNum && q.ans.length > 0 && q.ans.every(a => /^[ぁ-ゖー]+$/.test(a));
-  return { kind: q.isNum ? 'num' : 'text', html: esc(q.text), ans: q.isNum ? q.ans[0] : q.ans, alt: q.alt, unit: '', explain: '', key: q.key, isNum: q.isNum, hint: q.hint || '', kana };
+  const kana = !q.isNum && !q.noKana && q.ans.length > 0 && q.ans.every(a => /^[ぁ-ゖー]+$/.test(a));
+  return { kind: q.isNum ? 'num' : 'text', html: esc(q.text), ans: q.isNum ? q.ans[0] : q.ans, alt: q.alt, unit: '', explain: esc(q.explain || ''), key: q.key, isNum: q.isNum, hint: q.hint || '', kana, fig: q.fig || '', figFirst: !!q.figFirst };
 }
 function weightedPick(items, wf, n) {
   const pool = items.slice(), out = [];
@@ -313,8 +317,11 @@ const LABEL = { 'しりょう': '資料の読み取り', 'じっくり': '全国
 const lab = s => LABEL[s] || s;
 // 1教科ずつ公開していく。教科を足すときは、ここに名前を足す（算数・社会・国語・しりょう・じっくり）
 const ENABLED = ['算数'];
+const teacherOn = () => lsGet('kgkbw_teacher', '0') === '1';   // 先生モード（問題の確認用）：スキップボタンを出す＋ぜんぶの教科を出す
+const skipOn = teacherOn;
 const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
 function enabledSubjects() {   // 開発中だけ ?s=all や ?s=算数,社会 で、公開前の教科も試せる
+  if (teacherOn()) return ['算数', '社会', '国語', 'しりょう', 'じっくり'];
   const q = IS_LOCAL ? new URLSearchParams(location.search).get('s') : null;
   return q ? (q === 'all' ? ['算数', '社会', '国語', 'しりょう', 'じっくり'] : q.split(',')) : ENABLED;
 }
@@ -326,6 +333,7 @@ function home() {
   app.innerHTML = `
   <div class="homewrap">
     <h1>思考力育成ブロックワールド</h1>
+    ${teacherOn() ? '<div class="tmode">先生モード中（スキップボタンあり・ぜんぶの教科を出しています）　<a href="#teacher" id="tmoff">オフにする</a></div>' : ''}
     <p class="lead">やりたい 教科を 押してね。1問 正解すると、ブロックワールドで 10びょう ブロック学習できるよ！</p>
     <div class="bigbtns">${en.map(k => { const n = pend.filter(p => p.sub === k).length; return `<button class="bigbtn ${BTN[k][0]}" data-sub="${k}"><span class="${BTN[k][1]}">${lab(k)}</span>${n ? `<small>まちがい直し ${n}問</small>` : ''}</button>`; }).join('')}</div>
   </div>`;
@@ -424,10 +432,10 @@ function render() {
     <div class="q${q.figFirst ? ' sm' : ''}">${q.html}</div>
     ${!q.figFirst && q.fig ? `<div class="fig">${q.fig}</div>` : ''}
     ${body}
-    <div class="row" style="margin-top:16px"><button class="ghost" id="quit">教科えらびに もどる</button></div>
+    <div class="row" style="margin-top:16px"><button class="ghost" id="quit">教科えらびに もどる</button>${skipOn() ? '<button class="ghost" id="skip">スキップ（先生用）</button>' : ''}</div>
   </div>`;
   const on = (id, f) => { const e = $(id); if (e) e.onclick = f; };
-  on('#go', submit); on('#show', giveUp); on('#nx', next); on('#rego', retype); on('#quit', home);
+  on('#go', submit); on('#skip', skipQ); on('#show', giveUp); on('#nx', next); on('#rego', retype); on('#quit', home);
   app.querySelectorAll('button.choice').forEach(b => b.onclick = () => chooseAns(q.choices[+b.dataset.c]));
   const fields = q.kind === 'frac' ? [...app.querySelectorAll('input.fi')] : [$('#ans') || $('#re')].filter(Boolean);
   fields.forEach(field => field.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); (ph === 'ask' ? submit : retype)(); } }));
@@ -480,6 +488,11 @@ function submit() {
     R.timer = setTimeout(next, 1400);        // せいかいなら、すぐ つぎへ
   } else { result(it, false); R.phase = 'ng'; R.msg = ''; R.draft = null; render(); }
 }
+function skipQ() {   // 先生用：この問題を とばす（正誤も、まちがい直しも、ごほうびも、記録しない）
+  clearTimeout(R.timer);
+  if (R.phase === 'ask') R.n--;   // まだ答えていない問題は、出題数に数えない
+  next();
+}
 function giveUp() { R.draft = null; R.last = ''; result(R.cur, false); R.phase = R.cur.q.kind === 'choice' ? 'fixed' : 'ng'; R.msg = ''; render(); }
 function chooseAns(v) {   // 選択式：えらんだ答えを判定（まちがえたら、答えを見せて つぎへ）
   const it = R.cur, r = judge(it.q, v, false);
@@ -527,6 +540,14 @@ function teacher() {
   const pend = Object.keys(stats.pend).length;
   app.innerHTML = `
   <h1>せんせい用</h1>
+  <div class="card"><h2>先生モード（問題の確認用）</h2>
+    <div class="row"><span>スキップボタン（きろくにも、ごほうびにも残らない）＋ ぜんぶの教科（${lab('しりょう')}・${lab('じっくり')}もふくむ）を出す</span>
+      <div class="seg" role="group" aria-label="先生モード">
+        <button data-tm="0" class="${!teacherOn() ? 'on' : ''}">オフ</button>
+        <button data-tm="1" class="${teacherOn() ? 'on' : ''}">オン（先生用）</button>
+      </div></div>
+    <div class="small" style="margin-top:6px">オンの間は、教科えらびの画面に「先生モード中」と出ます。児童の端末では、オフのままにしてください。</div>
+  </div>
   <div class="card"><h2>設定</h2>
     <div class="row"><span>社会・国語（入力式）の判定</span>
       <div class="seg" role="group" aria-label="判定">
@@ -543,6 +564,7 @@ function teacher() {
   </div>
   <div class="row"><button class="ghost" id="back">もどる</button><button class="ghost" id="csv">きろくをCSVで保存</button><button class="ghost" id="reset">きろくを消す</button></div>
   <div class="small" style="margin-top:8px">きろくは、この端末のブラウザの中だけに保存されます（外には送りません）。</div>`;
+  app.querySelectorAll('[data-tm]').forEach(b => b.onclick = () => { lsSet('kgkbw_teacher', b.dataset.tm); teacher(); });
   app.querySelectorAll('[data-easy]').forEach(b => b.onclick = () => { lsSet('kgkbw_easy', b.dataset.easy); teacher(); });
   $('#nm').onchange = e => setName(e.target.value);
   $('#back').onclick = home; $('#csv').onclick = downloadCsv;
@@ -573,8 +595,9 @@ window.selfTest = function () {
   const bad = [];
   MATH_UNITS.forEach(u => MATH[u].forEach((g, i) => { for (let k = 0; k < 300; k++) {
     const q = g();
-    const probe = q.kind === 'frac' ? q.show.replace(/（.*$/, '') : q.ans;
+    const probe = q.kind === 'frac' ? q.show.replace(/（.*$/, '') : q.kind === 'text' ? q.ans[0] : q.ans;
     if (judge(q, probe, false).st !== 'ok') bad.push([u, i, q.html, probe]);
+    if (q.kind === 'text') q.ans.forEach(a => { if (judge(q, a, false).st !== 'ok') bad.push([u, i, q.html, a, 'ans']); });
     if (q.kind === 'frac' && q.form === 'any' && q.show.includes('（')) { const m = q.show.match(/（(.*)）/)[1]; if (judge(q, m, false).st !== 'ok') bad.push([u, i, 'mixed', m]); }
   } }));
   SOCIAL.forEach(q => {
@@ -592,10 +615,12 @@ window.selfTest = function () {
   });
   SHIRYO.forEach(q => {
     const Q = wordQ(q);
-    if (new Set(q.choices).size !== q.choices.length) bad.push([q.key, '選択肢の重複']);
-    if (q.choices.length < 2 || !q.choices.includes(q.ans[0])) bad.push([q.key, '選択肢の不備']);
-    if (judge(Q, q.ans[0], false).st !== 'ok') bad.push([q.key, 'right-not-ok']);
-    q.choices.filter(c => c !== q.ans[0]).forEach(c => { if (judge(Q, c, false).st !== 'ng') bad.push([q.key, c, 'wrong-is-ok']); });
+    if (q.kind === 'choice') {
+      if (new Set(q.choices).size !== q.choices.length) bad.push([q.key, '選択肢の重複']);
+      if (q.choices.length < 2 || !q.choices.includes(q.ans[0])) bad.push([q.key, '選択肢の不備']);
+      q.choices.filter(c => c !== q.ans[0]).forEach(c => { if (judge(Q, c, false).st !== 'ng') bad.push([q.key, c, 'wrong-is-ok']); });
+    }
+    q.ans.forEach(a => { if (judge(Q, a, false).st !== 'ok') bad.push([q.key, a, 'right-not-ok']); });
     if (!q.fig) bad.push([q.key, '資料なし']);
   });
   JIKKURI.forEach(p => {
@@ -652,7 +677,7 @@ function jkRender() {
   const stepper = `<div class="jk-steps">${names.map((n, i) => `<div class="${st.step === i + 1 ? 'on' : st.step > i + 1 ? 'done' : ''}">${st.step > i + 1 ? '✓ ' : ''}${n}</div>`).join('')}</div>`;
   const body = st.step === 1 ? jkStep1() : st.step === 2 ? jkStep2() : jkStep3();
   app.innerHTML = `${stepper}<div class="card"><h2><span class="jk-sub">${esc(p.unit)}</span>${esc(p.title)}</h2><p class="small" style="margin:0 0 4px">${esc(p.sub)}</p>${p.docs()}</div><div class="card">${body}</div>
-    <div class="row"><button class="ghost" id="jkquit">おわる（一覧へ）</button></div>`;
+    <div class="row"><button class="ghost" id="jkquit">おわる（一覧へ）</button>${skipOn() ? '<button class="ghost" id="jkskip">スキップ（先生用）</button>' : ''}</div>`;
   jkBind();
 }
 function jkStep1() {
@@ -736,8 +761,11 @@ function jkBind() {
   on('#jknextp', () => { if (st.i === JIKKURI.length - 1) jkList(); else jkStart(st.i + 1); });
   on('#jkagain', () => jkStart(st.i));
   on('#jkquit', jkList);
+  on('#jkskip', () => { if (st.i === JIKKURI.length - 1) jkList(); else jkStart(st.i + 1); });
 }
 updateBar();
+document.addEventListener('click', e => { if (e.target.id === 'tmoff') { e.preventDefault(); teacher(); } });   // 「オフにする」→ 先生用メニューへ
+window.addEventListener('hashchange', () => { if (location.hash === '#teacher') teacher(); });   // 開いているタブに #teacher を付けただけでも開く
 if (location.hash === '#teacher') teacher(); else home();
 </script>
 </body>
