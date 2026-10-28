@@ -259,6 +259,7 @@
         <div><kbd>1〜9</kbd> / ホイール アイテムをえらぶ</div>
         <div><kbd>E</kbd> もちもの・クラフト &nbsp; <kbd>Q</kbd> すてる</div>
         <div><kbd>T</kbd> もんだいを とく（ブロック学習の時間と素材をゲット）</div>
+        <div><kbd>/</kbd> コマンド（gunpro で全チームマスターの人だけ。<kbd>/help</kbd> で 一覧）</div>
         <div><kbd>Esc</kbd> メニュー</div>
         <div>📱 タブレット：左のスティックで移動、画面をなぞって見まわす、タップで置く、長押しで壊す</div>
       </div>
@@ -4429,7 +4430,9 @@ const Cmd = {
     if (on) { if (Input.locked) { Screens.suppressUnlock = true; Input.unlock(); } inp.value = pre || ''; setTimeout(() => inp.focus(), 0); }
     else { inp.blur(); window.focus(); Input.lock(); }
   },
-  usable() { return Game.free && Game.running && Game.ready && !player.dead && !Screens.isOpen() && !Quiz.active; },
+  // 先生用（フリーモード）か、gunpro で全チームマスターの人（11チーム）だけ つかえる
+  unlocked() { const g = Gift.read(); return !!g && g.count >= 11; },
+  usable() { return (Game.free || this.unlocked()) && Game.running && Game.ready && !player.dead && !Screens.isOpen() && !Quiz.active; },
   num(tok, base) {   // 数、または ~（いまの位置から）
     if (tok === undefined) return NaN;
     if (tok[0] === '~') { const d = tok.length > 1 ? parseFloat(tok.slice(1)) : 0; return base + (isNaN(d) ? NaN : d); }
@@ -4466,8 +4469,8 @@ const Cmd = {
       else if (a.length === 4) { x = this.num(a[1], p.x); y = this.num(a[2], p.y); z = this.num(a[3], p.z); }
       else { say('使い方：/tp x y z　／　/tp x z　／　/tp spawn'); return; }
       if (isNaN(x) || isNaN(z) || (y !== undefined && isNaN(y))) { say('数字で 入れてね（例：/tp 100 70 -50）'); return; }
-      if (y === undefined) { if (world.isLoaded(Math.floor(x), Math.floor(z))) y = world.getHeight(Math.floor(x), Math.floor(z)) + 1; else { y = 130; p.flying = true; } }
-      p.x = x; p.y = y; p.z = z; p.vx = p.vy = p.vz = 0; ChunkManager.needsScan = true;
+      if (y === undefined) { if (world.isLoaded(Math.floor(x), Math.floor(z))) y = world.getHeight(Math.floor(x), Math.floor(z)) + 1; else if (Player.isCreative()) { y = 130; p.flying = true; } else { say('そこは まだ読みこまれていないよ。高さも入れてね（/tp x y z）'); return; } }
+      p.x = x; p.y = y; p.z = z; p.vx = p.vy = p.vz = 0; p.fallStart = y; ChunkManager.needsScan = true;
       say('✨ テレポート！ x ' + x.toFixed(0) + ' / y ' + y.toFixed(0) + ' / z ' + z.toFixed(0)); return;
     }
     if (cmd === 'give') {
@@ -4794,6 +4797,12 @@ const Gift = {
     } catch (e) { return null; }
   },
   key(uid) { return 'kgkbw_gift_' + uid; },
+  noteCommands(g) {   // 全チームマスターの人に、コマンドが開放されたことを 1回だけ しらせる
+    if (g.count < 11) return;
+    const k = 'kgkbw_cmdnote_' + g.uid;
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch (e) { /* ignore */ }
+    HUD.message('👑 全チームマスターの とくてん：コマンドが つかえるよ！ / キーを おして、/help を うってみよう');
+  },
   claimed(uid) { try { return JSON.parse(localStorage.getItem(this.key(uid)) || '[]') || []; } catch (e) { return []; } },
   check() {
     if (Game.free || !Game.running || !Game.ready || player.dead) return;
@@ -4807,6 +4816,7 @@ const Gift = {
       }
       done.push(t.n); got.push(t);
     }
+    this.noteCommands(g);
     if (!got.length) return;
     try { localStorage.setItem(this.key(g.uid), JSON.stringify(done)); } catch (e) { /* 保存できなくても、この回は わたす */ }
     for (const t of got) HUD.message('🏅 ' + t.title + 'の ごほうび！ ' + t.items.map(([n, c]) => Items.get(n).displayName + (c > 1 ? ' ×' + c : '')).join('、'));
