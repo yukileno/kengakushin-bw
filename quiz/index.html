@@ -42,6 +42,10 @@ button.ghost{background:#fff;color:var(--sub);border:1px solid var(--line);borde
 .bigbtn small{font-size:.85rem;opacity:.9}
 .bigbtn.soc{background:#2a8a5a;box-shadow:0 4px 0 #1c6a42}
 .bigbtn.kok{background:#b4532a;box-shadow:0 4px 0 #8a3d1c}
+.sec{font-weight:700;color:var(--sub);margin:4px 0 8px;font-size:.95rem}
+.bigbtn.locked{filter:grayscale(.85);opacity:.6;cursor:not-allowed;box-shadow:none}
+.bigbtn small .meter{background:rgba(255,255,255,.35);width:70px}
+.bigbtn small .meter>i{background:#fff}
 .bigbtn:active{transform:translateY(3px);box-shadow:none}
 .choices{display:flex;flex-direction:column;gap:10px;margin-top:6px}
 button.choice{text-align:left;background:#fff;color:var(--ink);border:2px solid var(--main);border-radius:12px;padding:12px 16px;font-size:1.2rem;line-height:1.5;cursor:pointer;font-family:inherit}
@@ -321,7 +325,7 @@ window.BWQ = { show: updateBar };
 const LABEL = { 'しりょう': '資料の読み取り', 'じっくり': '全国学力テストへの道' };   // 画面に出す名前（内部の名前は そのまま）
 const lab = s => LABEL[s] || s;
 // 1教科ずつ公開していく。教科を足すときは、ここに名前を足す（算数・社会・国語・しりょう・じっくり）
-const ENABLED = ['算数'];
+const ENABLED = ['算数', '社会', '国語', 'しりょう', 'じっくり'];   // しりょう・じっくりは、下の isLocked で ロックされる
 const teacherOn = () => lsGet('kgkbw_teacher', '0') === '1';   // 先生モード（問題の確認用）：スキップボタンを出す＋ぜんぶの教科を出す
 const skipOn = teacherOn;
 const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -331,18 +335,38 @@ function enabledSubjects() {   // 開発中だけ ?s=all や ?s=算数,社会 �
   return q ? (q === 'all' ? ['算数', '社会', '国語', 'しりょう', 'じっくり'] : q.split(',')) : ENABLED;
 }
 const BTN = { '算数': ['', ''], '社会': ['soc', ''], '国語': ['kok', ''], 'しりょう': ['shr', 'long'], 'じっくり': ['jk', 'long'] };
+/* ---------- 達成率とロック ----------
+   算数＝パターンごとの正解数（最大3回）の合計÷(パターン数×3)／社会・国語・しりょう＝「できた」問題の割合／じっくり＝最後まで完成した問題の割合
+   基礎（算数・社会・国語）がぜんぶ100% → しりょう、しりょうが100% → じっくり が開く。先生モードでは ぜんぶ開く */
+const BASIC = ['算数', '社会', '国語'];
+function prog(sub) {
+  let got, tot;
+  if (sub === '算数') { tot = MATH_GENS.length * 3; got = sum(MATH_GENS.map(mathCredit)); }
+  else if (sub === 'じっくり') { tot = JIKKURI.length; got = JIKKURI.filter(q => { const o = stats.q[q.key]; return o && o.ok + o.ng > 0; }).length; }
+  else { const pool = sub === 'しりょう' ? SHIRYO : sub === '国語' ? KOKUGO : SOCIAL; tot = pool.length; got = pool.filter(doneQ).length; }
+  return tot ? Math.floor(got / tot * 100) : 0;
+}
+const lockNeed = sub => sub === 'しりょう' ? BASIC.filter(k => prog(k) < 100) : sub === 'じっくり' ? (prog('しりょう') < 100 ? ['しりょう'] : []) : [];
+const isLocked = sub => !teacherOn() && lockNeed(sub).length > 0;
 function home() {
   if (R) { clearTimeout(R.timer); R = null; }
   const pend = Object.values(stats.pend);
   const en = enabledSubjects().filter(k => BTN[k]);
+  const btn = k => {
+    const n = pend.filter(p => p.sub === k).length, pc = prog(k), lk = isLocked(k);
+    const sub = lk ? `<small>🔒 ${k === 'しりょう' ? '算数・社会・国語が ぜんぶ 100% で ひらくよ' : lab('しりょう') + 'が 100% で ひらくよ'}</small>`
+      : `<small><span class="meter"><i style="width:${pc}%"></i></span>${pc}%${n ? '　まちがい直し ' + n + '問' : ''}</small>`;
+    return `<button class="bigbtn ${BTN[k][0]}${lk ? ' locked' : ''}" data-sub="${k}"${lk ? ' aria-disabled="true"' : ''}><span class="${BTN[k][1]}">${lab(k)}</span>${sub}</button>`;
+  };
+  const sec = (title, ks) => { const l = ks.filter(k => en.includes(k)); return l.length ? `<div class="sec">${title}</div><div class="bigbtns">${l.map(btn).join('')}</div>` : ''; };
   app.innerHTML = `
   <div class="homewrap">
     <h1>思考力育成ブロックワールド</h1>
     ${teacherOn() ? '<div class="tmode">先生モード中（スキップボタンあり・ぜんぶの教科を出しています）　<a href="#teacher" id="tmoff">オフにする</a></div>' : ''}
     <p class="lead">やりたい 教科を 押してね。1問 正解すると、ブロックワールドで 10びょう ブロック学習できるよ！</p>
-    <div class="bigbtns">${en.map(k => { const n = pend.filter(p => p.sub === k).length; return `<button class="bigbtn ${BTN[k][0]}" data-sub="${k}"><span class="${BTN[k][1]}">${lab(k)}</span>${n ? `<small>まちがい直し ${n}問</small>` : ''}</button>`; }).join('')}</div>
+    ${sec('基礎', BASIC)}${sec('発展', ['しりょう'])}${sec('挑戦', ['じっくり'])}
   </div>`;
-  app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { const sub = b.dataset.sub; sub === 'じっくり' ? jkList() : begin(sub); });
+  app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { const sub = b.dataset.sub; if (isLocked(sub)) return; sub === 'じっくり' ? jkList() : begin(sub); });
   updateBar();
 }
 
