@@ -241,6 +241,7 @@
         <button class="btn" id="btn-save">セーブする</button>
         <button class="btn" id="btn-newworld">タイトルにもどる</button>
       </div>
+      <div id="pause-note" style="min-height:22px;margin:2px 0 6px;font-weight:700;color:#8fe39b"></div>
       <div class="row">
         <label>見えるきょり <input type="range" id="rd-slider" min="2" max="12" value="5"> <span id="rd-val">5</span>
           <span style="font-size:11px">（おもいときは ちいさく）</span></label>
@@ -4317,6 +4318,8 @@ const HUD = {
     this.lastName = s ? s.name : null;
   },
   message(text) {
+    const pn = $('pause-note');   // メニューを開いている間は、メッセージがメニューの後ろにかくれるので、メニューの中にも出す
+    if (pn && !$('pause').classList.contains('hidden')) { pn.textContent = text; clearTimeout(this.pnT); this.pnT = setTimeout(() => { pn.textContent = ''; }, 4000); }
     const box = $('msgs'); const d = document.createElement('div'); d.textContent = text; box.appendChild(d);
     while (box.children.length > 6) box.removeChild(box.firstChild);
     setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 6000);
@@ -4377,7 +4380,8 @@ const Save = {
   },
   // localStorage copy is deflated with JSZip (base64) so many chunks fit in the ~5 MB quota.
   async save(silent) {
-    if (Game.free) return false;
+    if (Game.free) { if (!silent) HUD.message('フリーで建築のときは、セーブできないよ'); return false; }
+    if (!Game.ready) { if (!silent) HUD.message('ワールドを つくっているよ。おわってから セーブしてね'); return false; }   // 読みこみ中に保存すると、からっぽのワールドで上書きしてしまう
     try {
       const data = this.serialize(), json = JSON.stringify(data);
       const zip = new JSZip(); zip.file('world.json', json);
@@ -4564,7 +4568,7 @@ const Menus = {
     $('btn-continue').addEventListener('click', async () => { const d = await Save.loadData(); if (d) Save.apply(d); else HUD.message('セーブデータがないよ'); });
     $('btn-continue').disabled = !Save.hasSave();
     $('btn-resume').addEventListener('click', () => Game.resume());
-    $('btn-save').addEventListener('click', () => Save.save(false));
+    $('btn-save').addEventListener('click', async () => { const b = $('btn-save'); b.disabled = true; try { await Save.save(false); } finally { b.disabled = false; } });
     $('btn-load').addEventListener('click', async () => { const d = await Save.loadData(); if (d) Save.apply(d); else HUD.message('セーブデータがないよ'); });
     $('btn-export').addEventListener('click', () => Save.exportFile());
     $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) Save.importFile(e.target.files[0]); e.target.value = ''; });
@@ -4852,7 +4856,11 @@ const Bed = {
 const Quiz = {
   active: false, loaded: false, tips: false,
   open(reason) {
-    if (this.active || Game.free || !Game.running || !Game.ready || player.dead) return;
+    if (this.active || !Game.running) return;
+    if (Game.free || !Game.ready || player.dead) {   // 開けないときは、理由をメニューに出す（何も起きないように見えるのを防ぐ）
+      if (reason === 'manual') HUD.message(Game.free ? 'フリーで建築のときは、もんだいは ないよ' : player.dead ? 'やられたときは、もんだいは とけないよ' : 'ワールドを つくっているよ。ちょっと まってね');
+      return;
+    }
     this.active = true; Game.paused = true;
     Screens.close(); RecipeBook.close();
     $('pause').classList.add('hidden');
