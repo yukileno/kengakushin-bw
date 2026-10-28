@@ -6,7 +6,8 @@
 キーボード操作（Chromebook向け）: `M` ＝こわす・たたかう（ポンとおすだけで1つ壊れる。おしつづけるとどんどん壊す）、`N` ＝置く・つかう・食べる（マウスのクリックでもOK）。
 
 - `index.html` … ゲーム本体（[BlockWorld2](https://github.com/yukileno/BlockWorld2) をもとにしたサバイバル型ブロックゲーム）
-- `quiz/` … 県学診の問題画面（ゲームの上に重ねて出る）。問題は [kengakushin-practice](https://github.com/yukileno/kengakushin-practice) と同じ（`quiz/data/` は、そちらからコピーして使う。国語の読解は `yomi.js`）
+- `quiz/` … 県学診の問題画面（ゲームの上に重ねて出る）。**問題データの本体はここ**（`quiz/data/`。国語の読解は `yomi.js`）。問題を足す・直すときは、ここだけを直す
+  - [kengakushin-practice](https://github.com/yukileno/kengakushin-practice) は旧版（クイズだけのアプリ）。もう更新しない
   - `quiz/data/` … 算数・社会・国語・資料の読み取り・全国学力テストへの道の問題データ
 - 達成率・ドット絵・ロックはありません（ごほうびは「ブロック学習の時間」だけ）
 
