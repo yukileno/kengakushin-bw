@@ -175,7 +175,7 @@
   .recipe-btn { float: right; }
   #msgs { font-size: 15px; }
   .hint-note { font-size: 13px; background: #fff7d6; border: 2px solid #e0b100; color: #4a3b00; padding: 6px 10px; margin-top: 8px; }
-  /* ----- タブレットモード（タッチ操作） ---------------------------------- */
+  /* ----- タッチ操作 ---------------------------------- */
   body.touch-on, body.touch-on #app { touch-action: none; -webkit-touch-callout: none; }
   body.touch-on #hotbar { pointer-events: auto; }
   body.touch-on #crosshair { display: none; }
@@ -261,7 +261,7 @@
         <div><kbd>T</kbd> もんだいを とく（ブロック学習の時間と素材をゲット）</div>
         <div><kbd>/</kbd> コマンド（gunpro で全チームマスターの人だけ。<kbd>/help</kbd> で 一覧）</div>
         <div><kbd>Esc</kbd> メニュー</div>
-        <div>📱 タブレット：左のスティックで移動、画面をなぞって見まわす、タップで置く、長押しで壊す</div>
+        <div>📱 タッチ操作：左のスティックで移動、画面をなぞって見まわす、タップで置く、長押しで壊す</div>
       </div>
       <div class="hint-note">
         🌳 木をたたいて「原木」→ もちもの（E）で「木材」→「作業台」→ ツルハシを作ろう！<br>
@@ -297,7 +297,7 @@
         <button class="btn big" id="btn-play">⛏️ あたらしく はじめる</button>
         <button class="btn big" id="btn-continue">▶ つづきから</button>
       </div>
-      <div class="row"><button class="btn" id="btn-touch">📱 タブレットモード：オフ</button></div>
+      <div class="row"><button class="btn" id="btn-touch">📱 タッチで操作：オン</button></div>
       <!-- 先生用（アドレスの末尾に #teacher を付けたときだけ出る） -->
       <div id="teacher-box" class="hidden">
         <div class="row"><button class="btn" id="btn-free">🎮 先生用：フリーで建築（もんだいなし・セーブなし）</button></div>
@@ -4880,11 +4880,11 @@ const Quiz = {
 };
 
 
-/* ---- タブレットモード：左スティックで移動、なぞって見まわす、タップで置く、長押しで壊す ---- */
+/* ---- タッチ操作：左スティックで移動、なぞって見まわす、タップで置く、長押しで壊す ---- */
 const TouchUI = {
-  enabled() { try { const v = localStorage.getItem('kgkbw_touch'); if (v !== null) return v === '1'; } catch (e) { /* ignore */ } return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches); },   // マウス・タッチパッドがある端末（Chromebook など）は、最初からキーボードモード
+  enabled() { try { const v = localStorage.getItem('kgkbw_touch'); if (v !== null) return v === '1'; } catch (e) { /* ignore */ } return true; },   // 保存がなければ、最初からタッチ操作オン
   set(on) { try { localStorage.setItem('kgkbw_touch', on ? '1' : '0'); } catch (e) { /* ignore */ } this.label(); },
-  label() { const b = $('btn-touch'); const on = this.enabled(); b.textContent = '📱 タブレットモード：' + (on ? 'オン' : 'オフ'); b.classList.toggle('on', on); },
+  label() { const b = $('btn-touch'); const on = this.enabled(); b.textContent = '📱 タッチで操作：' + (on ? 'オン' : 'オフ'); b.classList.toggle('on', on); },
   refresh() {
     const show = Game.touch && Game.running && Game.ready && !Screens.isOpen() && !Game.paused && !player.dead;
     $('touch').classList.toggle('hidden', !show);
