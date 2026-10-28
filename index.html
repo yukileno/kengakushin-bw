@@ -143,6 +143,8 @@
   #timer-bar i { display: block; height: 100%; width: 0; background: #ffd35c; }
   #timer.low #timer-bar i { background: #ff6b6b; }
   #timer small { display: block; font-size: 12px; margin-top: 3px; }
+  #sleep { position: absolute; inset: 0; z-index: 40; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity .8s; }
+  #sleep.on { opacity: 1; }
   #quiz-overlay { position: absolute; inset: 0; z-index: 50; background: #d9efdc; }
   #quiz-frame { width: 100%; height: 100%; border: 0; display: block; }
   #start .panel { min-width: 0 !important; width: min(560px, 94vw); background: rgba(30,40,30,0.92); color: #eee; text-align: center; }
@@ -205,7 +207,7 @@
     <div id="mode"></div>
     <div id="msgs"></div>
     <div id="breakhint"><i></i></div>
-    <div id="timer"><span id="timer-text">⏱ 0:00</span><div id="timer-bar"><i></i></div><small>[M] もんだいを とく</small></div>
+    <div id="timer"><span id="timer-text">⏱ 0:00</span><div id="timer-bar"><i></i></div><small>[T] もんだいを とく</small></div>
     <div id="itemname"></div>
     <canvas id="bars" width="182" height="20"></canvas>
     <div id="hotbar"></div>
@@ -313,6 +315,7 @@
   <div id="recipes" class="overlay hidden"><div class="panel" id="recipes-panel"></div></div>
 
   <!-- 県学診のもんだい（ゲームの上に重ねて出す） -->
+  <div id="sleep"></div>
   <div id="quiz-overlay" class="hidden"><iframe id="quiz-frame" title="もんだい" src="about:blank"></iframe></div>
 </div>
 
@@ -689,6 +692,7 @@ Blocks.define('crafting_table', { tex: { top: 'crafting_table_top', bottom: 'oak
 Blocks.define('furnace', { tex: { top: 'furnace_top', bottom: 'furnace_top', side: 'furnace_side', front: 'furnace_front' }, hardness: 3.5, tool: 'pickaxe', tier: 1, requiresTool: true, interactive: 'furnace', tileEntity: true, facing: true });
 Blocks.define('furnace_lit', { tex: { top: 'furnace_top', bottom: 'furnace_top', side: 'furnace_side', front: 'furnace_front_on' }, hardness: 3.5, tool: 'pickaxe', tier: 1, requiresTool: true, interactive: 'furnace', tileEntity: true, facing: true, light: 13, drops: 'furnace', noItem: true });
 Blocks.define('chest', { model: 'box', box: [1, 0, 1, 15, 14, 15], tex: { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' }, hardness: 2.5, tool: 'axe', flammable: 20, interactive: 'chest', tileEntity: true, facing: true, transparent: true, opaque: false, cullSame: false });
+Blocks.define('bed', { model: 'box', box: [0, 0, 0, 16, 9, 16], tex: { top: 'bed_top', bottom: 'oak_planks', side: 'bed_side', front: 'bed_side' }, hardness: 0.2, flammable: 30, interactive: 'bed', transparent: true, opaque: false, cullSame: false });
 Blocks.define('torch', { model: 'torch', solid: false, transparent: true, light: 14, hardness: 0, needsSupport: 'any', icon: 'flat' });
 Blocks.define('ladder', { model: 'ladder', solid: false, transparent: true, hardness: 0.4, tool: 'axe', climbable: true, needsSupport: 'wall', flammable: 10, icon: 'flat' });
 for (const c of WOOL_NAMES) Blocks.define(c + '_wool', { hardness: 0.8, tool: 'shears', flammable: 30 });
@@ -819,6 +823,7 @@ Items.define('arrow', { type: 'material', creativeTab: 'tools' });
   const COLOR = { white: '白', orange: 'オレンジ', magenta: '赤むらさき', light_blue: '水色', yellow: '黄色', lime: '黄緑', pink: 'ピンク', gray: 'はい色', light_gray: 'うすいはい色', cyan: '青緑', purple: 'むらさき', blue: '青', brown: '茶色', green: '緑', red: '赤', black: '黒' };
   const TREE = { oak: 'オーク', birch: 'シラカバ', spruce: 'トウヒ' };
   const JA = {
+    bed: 'ベッド',
     stone: '石', granite: '花こう岩', diorite: '閃緑岩', andesite: '安山岩', grass_block: '草ブロック', dirt: '土', cobblestone: '丸石', mossy_cobblestone: 'こけむした丸石',
     stone_bricks: '石レンガ', sand: '砂', gravel: '砂利', sandstone: '砂岩', bedrock: '岩盤', glass: 'ガラス', water: '水', lava: '溶岩',
     coal_ore: '石炭鉱石', iron_ore: '鉄鉱石', gold_ore: '金鉱石', redstone_ore: 'レッドストーン鉱石', lapis_ore: 'ラピスラズリ鉱石', diamond_ore: 'ダイヤ鉱石', emerald_ore: 'エメラルド鉱石',
@@ -953,6 +958,8 @@ const Recipes = {
   R.addShaped('crafting_table', 1, ['PP', 'PP'], { P: 'tag:planks' });
   R.addShaped('torch', 4, ['C', 'S'], { C: 'tag:coals', S: 'stick' });
   R.addShaped('chest', 1, ['PPP', 'P P', 'PPP'], { P: 'tag:planks' });
+  R.addShaped('bed', 1, ['WWW', 'PPP'], { W: 'tag:wool', P: 'tag:planks' });   // 羊毛3 ＋ 木材3
+  R.addShaped('bed', 1, ['PPP', 'PPP'], { P: 'tag:planks' });                  // 木材6 でも作れる
   R.addShaped('furnace', 1, ['CCC', 'C C', 'CCC'], { C: 'cobblestone' });
   const mats = { wooden: 'tag:planks', stone: 'cobblestone', iron: 'iron_ingot', golden: 'gold_ingot', diamond: 'diamond' };
   for (const tier of Object.keys(mats)) {
@@ -1125,6 +1132,8 @@ G.furnace_front = (p) => { cobble(p); p.rect(4, 7, 8, 7, C('#1e1e1e')); p.rect(4
 G.furnace_front_on = (p) => { G.furnace_front(p); for (let x = 5; x < 11; x++) { const h = 2 + p.r.int(4); p.rect(x, 13 - h, 1, h, C('#ff8a1a')); p.rect(x, 13 - (h >> 1), 1, h >> 1, C('#ffd23c')); } return p; };
 const chest = (front) => (p) => { p.mottle('#a5793f', 0.1, 0.3); const d = C('#3b2a14'); p.rect(0, 0, 16, 1, d); p.rect(0, 15, 16, 1, d); p.rect(0, 0, 1, 16, d); p.rect(15, 0, 1, 16, d); p.rect(1, 6, 14, 1, mulc(d, 1.4)); if (front) p.rect(7, 5, 2, 4, C('#8a8a8a')); return p; };
 G.chest_top = chest(false); G.chest_side = chest(false); G.chest_front = chest(true);
+G.bed_top = (p) => { p.mottle('#b3262a', 0.08, 0.3); p.rect(0, 0, 16, 5, C('#f0f0f0')); p.rect(0, 5, 16, 1, C('#d8d8d8')); p.rect(0, 15, 16, 1, C('#7a1a1e')); p.rect(0, 0, 1, 16, C('#8f1e22')); p.rect(15, 0, 1, 16, C('#8f1e22')); return p; };
+G.bed_side = (p) => { p.mottle('#b8883f', 0.08, 0.3); p.rect(0, 0, 16, 12, C('#b3262a')); p.rect(0, 11, 16, 1, C('#7a1a1e')); p.rect(0, 12, 16, 1, C('#8a5a26')); return p; };   // 赤い毛布（上〜12段め）と、木のわく（下）
 G.tnt_side = (p) => { p.mottle('#c9331d', 0.12); p.rect(0, 5, 16, 5, C('#e8e8e8')); const k = C('#2a2a2a'); p.rect(2, 6, 3, 1, k); p.rect(3, 6, 1, 3, k); p.rect(6, 6, 1, 3, k); p.rect(7, 7, 1, 1, k); p.rect(8, 6, 1, 3, k); p.rect(10, 6, 3, 1, k); p.rect(11, 6, 1, 3, k); return p; };
 G.tnt_top = (p) => { p.mottle('#8a2a1a', 0.12); p.rect(3, 3, 10, 10, C('#9a9a9a')); p.speck(12, C('#6a6a6a')); return p; };
 G.tnt_bottom = M('#6a1e12', 0.12);
@@ -2988,6 +2997,7 @@ const Interaction = {
   interact(def, x, y, z) {
     if (def.interactive === 'crafting') Screens.open('crafting');
     else if (def.interactive === 'furnace') { if (!world.getTile(x, y, z)) world.setTile(x, y, z, Furnace.create()); Screens.open('furnace', { x, y, z }); }
+    else if (def.interactive === 'bed') Bed.use(x, y, z);
     else if (def.interactive === 'chest') { if (!world.getTile(x, y, z)) world.setTile(x, y, z, { type: 'chest', slots: new Array(27).fill(null) }); Screens.open('chest', { x, y, z }); }
   },
   toggleDoor(x, y, z) {
@@ -4717,6 +4727,32 @@ const Gift = {
   }
 };
 
+/* ---- ベッド：夜にねると、朝になる。リスポーン地点にもなる ---- */
+const Bed = {
+  busy: false,
+  nearMonster(x, y, z) { return Mobs.list.some(m => !m.dead && m.def.hostile && Math.abs(m.x - x) < 10 && Math.abs(m.z - z) < 10 && Math.abs(m.y - y) < 6); },
+  use(x, y, z) {
+    if (this.busy) return;
+    player.spawn = [x + 0.5, y + 1, z + 0.5];   // ベッドにさわると、そこが リスポーン地点になる
+    if (Sky.dayFactor >= 0.4) { HUD.message('☀️ リスポーン地点を ここにしたよ。夜になると ねむれるよ'); return; }
+    if (this.nearMonster(x, y, z)) { HUD.message('🧟 近くに 敵がいて ねむれないよ！'); return; }
+    this.busy = true; Game.paused = true;
+    const el = $('sleep'); el.textContent = '💤 ぐっすり…'; el.classList.add('on');
+    setTimeout(() => {
+      if (Sky.time >= 6000) Sky.day++;   // 夕方〜まよなかにねたら、つぎの日の朝へ
+      Sky.time = 1000;
+      Weather.raining = false; Weather.amount = 0;
+      for (const m of Mobs.list.slice()) if (!m.dead && m.def.hostile) Mobs.remove(m);   // 夜の敵は いなくなる
+      player.health = player.maxHealth;
+      el.textContent = '☀️ おはよう！';
+      setTimeout(() => {
+        el.classList.remove('on'); Game.paused = false; this.busy = false;
+        HUD.message('☀️ 朝になったよ！ 元気いっぱい（リスポーン地点は ベッドだよ）');
+      }, 900);
+    }, 1500);
+  }
+};
+
 const Quiz = {
   active: false, loaded: false, tips: false,
   open(reason) {
@@ -4865,7 +4901,7 @@ const RecipeBook = {
     html += sec('1. はじめに', ['oak_planks', 'stick', 'crafting_table'], '原木 → 木材 → 棒 と作業台。まず 作業台を作ろう！');
     html += sec('2. どうぐ', ['wooden_pickaxe', 'wooden_axe', 'wooden_sword', 'wooden_shovel', 'wooden_hoe'],
       '「木材」のところに「丸石」を使うと 石の道具、「鉄インゴット」だと 鉄の道具、「ダイヤモンド」だと ダイヤの道具になるよ（どんどん強い！）。鉄やダイヤは 石のツルハシ・鉄のツルハシが ないと ほれないよ。');
-    html += sec('3. くらし', ['furnace', 'torch', 'chest', 'oak_door', 'ladder', 'bucket', 'shears', 'flint_and_steel', 'bow', 'arrow', 'bread']);
+    html += sec('3. くらし', ['furnace', 'torch', 'chest', 'oak_door', 'bed', 'ladder', 'bucket', 'shears', 'flint_and_steel', 'bow', 'arrow', 'bread']);
     let sm = '<h2>4. かまどで やく・とかす</h2><div class="rc-note">かまどに「やくもの」と「ねんりょう（石炭・木炭・原木・木材・棒）」を入れて、少し待つよ。</div>';
     const pairs = [['iron_ore', 'iron_ingot'], ['gold_ore', 'gold_ingot'], ['sand', 'glass'], ['cobblestone', 'stone'], ['porkchop', 'cooked_porkchop'], ['beef', 'cooked_beef'], ['chicken', 'cooked_chicken'], ['mutton', 'cooked_mutton'], ['oak_log', 'charcoal']];
     for (const [a, b] of pairs) sm += `<div class="rc"><div class="rc-name"><img class="ic" alt="" src="${Atlas.getIcon(a)}">${Items.get(a).displayName}</div><span class="ar">→</span><div class="rc-name"><img class="ic" alt="" src="${Atlas.getIcon(b)}">${Items.get(b).displayName}</div></div>`;
