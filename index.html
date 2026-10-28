@@ -797,6 +797,13 @@ for (const tier of Object.keys(TOOL_TIERS)) {
       tool: { kind, tier, level: t.level, speed: t.speed, durability: t.durability }, damage: TOOL_DAMAGE[kind][tier] });
   }
 }
+// gunpro のマスター称号のごほうび（とくべつな道具。絵は ダイヤの道具と同じ）
+Items.define('legend_sword', { displayName: 'レジェンドの剣', type: 'weapon', stack: 1, creativeTab: 'tools', tex: 'diamond_sword',
+  tool: { kind: 'sword', tier: 'diamond', level: 4, speed: 8, durability: 5000 }, damage: 12 });
+Items.define('master_sword', { displayName: 'マスターの剣', type: 'weapon', stack: 1, creativeTab: 'tools', tex: 'diamond_sword',
+  tool: { kind: 'sword', tier: 'diamond', level: 4, speed: 8, durability: 100000 }, damage: 20 });
+Items.define('master_pickaxe', { displayName: 'マスターのツルハシ', type: 'tool', stack: 1, creativeTab: 'tools', tex: 'diamond_pickaxe',
+  tool: { kind: 'pickaxe', tier: 'diamond', level: 4, speed: 24, durability: 100000 }, damage: 5 });
 Items.define('shears', { type: 'tool', stack: 1, tool: { kind: 'shears', tier: 'iron', level: 1, speed: 15, durability: 238 }, creativeTab: 'tools' });
 Items.define('flint_and_steel', { type: 'tool', stack: 1, tool: { kind: 'igniter', tier: 'iron', level: 0, speed: 1, durability: 64 }, creativeTab: 'tools' });
 Items.define('bucket', { type: 'tool', stack: 16, creativeTab: 'tools' });
@@ -4567,7 +4574,7 @@ const Game = {
           if (this.fresh) { this.fresh = false; Quiz.tips = true; }
           if (this.free) { Input.lock(); HUD.message('🎮 フリーモード：もんだいなし・セーブなし。Eで すべてのアイテム、スペースを2回おすと とべる（もういちどで おりる）。Shiftで さがる'); }
           else if (BW2.sec <= 0 || this.openQuizFirst) { const first = this.openQuizFirst; this.openQuizFirst = false; Quiz.open(first ? 'manual' : 'start'); }
-          else { Input.lock(); HUD.message('画面をクリックすると うごかせるよ'); }
+          else { Input.lock(); HUD.message('画面をクリックすると うごかせるよ'); Gift.check(); }
         }
       } else if (!this.paused) {
         Player.update(dt);
@@ -4660,6 +4667,44 @@ const BW2 = {
 };
 window.BW2 = BW2;
 
+/* ---- gunpro（郡中プロジェクト）のマスター称号 → ブロックワールドのごほうび ----
+   gunpro と同じブラウザ（同じ yukileno.github.io）に、gunpro が保存している起動データ(gunpro_boot_v1)から、
+   マスターしたチームの数を読む。その子が まだもらっていない称号の分だけ、1回ずつ わたす。 */
+const Gift = {
+  TIERS: [
+    { n: 1,  title: '⭐ マスター',         items: [['iron_sword', 1], ['iron_pickaxe', 1], ['cooked_beef', 16]] },
+    { n: 3,  title: '💪 ベテラン',         items: [['diamond_sword', 1], ['diamond_pickaxe', 1], ['diamond', 5]] },
+    { n: 5,  title: '🔥 エース',           items: [['diamond_axe', 1], ['diamond_shovel', 1], ['cooked_beef', 32], ['diamond_block', 3]] },
+    { n: 8,  title: '🌟 レジェンド',       items: [['legend_sword', 1], ['diamond_block', 5]] },
+    { n: 11, title: '👑 全チームマスター', items: [['master_sword', 1], ['master_pickaxe', 1]] }
+  ],
+  read() {   // { uid, count } か、gunpro のデータがなければ null
+    try {
+      const c = JSON.parse(localStorage.getItem('gunpro_boot_v1') || 'null'), u = c && c.r && c.r.user;
+      if (!u || !u.uid) return null;
+      return { uid: String(u.uid), count: Array.isArray(u.mastered) ? u.mastered.length : 0 };
+    } catch (e) { return null; }
+  },
+  key(uid) { return 'kgkbw_gift_' + uid; },
+  claimed(uid) { try { return JSON.parse(localStorage.getItem(this.key(uid)) || '[]') || []; } catch (e) { return []; } },
+  check() {
+    if (Game.free || !Game.running || !Game.ready || player.dead) return;
+    const g = this.read(); if (!g || g.count < 1) return;
+    const done = this.claimed(g.uid), got = [];
+    for (const t of this.TIERS) {
+      if (g.count < t.n || done.includes(t.n)) continue;
+      for (const [name, count] of t.items) {
+        const left = Inventory.addToPlayer({ name, count });
+        if (left > 0) Entities.spawnItem(player.x, player.y + 1, player.z, { name, count: left });
+      }
+      done.push(t.n); got.push(t);
+    }
+    if (!got.length) return;
+    try { localStorage.setItem(this.key(g.uid), JSON.stringify(done)); } catch (e) { /* 保存できなくても、この回は わたす */ }
+    for (const t of got) HUD.message('🏅 ' + t.title + 'の ごほうび！ ' + t.items.map(([n, c]) => Items.get(n).displayName + (c > 1 ? ' ×' + c : '')).join('、'));
+  }
+};
+
 const Quiz = {
   active: false, loaded: false, tips: false,
   open(reason) {
@@ -4683,6 +4728,7 @@ const Quiz = {
     window.focus();
     if (this.tips) { this.tips = false; HUD.message(Game.touch ? '🌳 まず 木を長押しして「原木」をあつめよう' : '🌳 まず 木をたたいて「原木」をあつめよう（Mキーをおしつづける）'); HUD.message(Game.touch ? '📦 🎒ボタンで もちもの。原木 → 木材 → 作業台 → ツルハシ！' : '📦 Eキーで もちもの。原木 → 木材 → 作業台 → ツルハシ！'); HUD.message('✏️ 時間がなくなると もんだいが出るよ（Tキーでも開けるよ）。とくと 素材と時間（10びょう）がもらえる！'); }
     const keys = Object.keys(BW2.pending);
+    Gift.check();
     if (keys.length) { HUD.message('🎁 ゲット: ' + keys.map(n => Items.get(n).displayName + ' ×' + BW2.pending[n]).join('、')); BW2.pending = {}; }
     if (!player.dead) Input.lock();
     setTimeout(() => { if (Game.running && !Game.paused && !Input.locked && !Screens.isOpen()) HUD.message('画面をクリックすると うごかせるよ'); }, 400);
