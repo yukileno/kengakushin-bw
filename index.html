@@ -143,6 +143,9 @@
   #timer-bar i { display: block; height: 100%; width: 0; background: #ffd35c; }
   #timer.low #timer-bar i { background: #ff6b6b; }
   #timer small { display: block; font-size: 12px; margin-top: 3px; }
+  #cmdbar { position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%); width: min(620px, 92vw); z-index: 45; background: rgba(0,0,0,.72); border: 2px solid #aaa; padding: 8px 10px; }
+  #cmd-input { width: 100%; box-sizing: border-box; font-size: 18px; padding: 6px 8px; border: 2px solid #666; background: #111; color: #fff; font-family: ui-monospace, Consolas, monospace; }
+  #cmd-hint { color: #ccc; font-size: 12px; margin-top: 4px; }
   #sleep { position: absolute; inset: 0; z-index: 40; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity .8s; }
   #sleep.on { opacity: 1; }
   #quiz-overlay { position: absolute; inset: 0; z-index: 50; background: #d9efdc; }
@@ -316,6 +319,7 @@
 
   <!-- 県学診のもんだい（ゲームの上に重ねて出す） -->
   <div id="sleep"></div>
+  <div id="cmdbar" class="hidden"><input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="/help でコマンドの一覧"><div id="cmd-hint">Enter で実行 ・ Esc でとじる</div></div>
   <div id="quiz-overlay" class="hidden"><iframe id="quiz-frame" title="もんだい" src="about:blank"></iframe></div>
 </div>
 
@@ -4412,6 +4416,86 @@ const Save = {
   }
 };
 
+/* ---- 先生用コマンド（フリーモードだけ）： / か Enter で入力欄をひらく ----
+   /time /tp /weather /give /heal /clear /pos /help */
+const Cmd = {
+  open: false,
+  HELP: ['/time day|noon|sunset|night|midnight|0〜23999  … 時間を かえる',
+         '/tp x y z  か  /tp x z  … テレポート（~ で いまの位置から。例 /tp ~ ~10 ~）／ /tp spawn  … ベッド・はじまりの場所へ',
+         '/weather clear|rain … 天気 ／ /give アイテム名 [数] … アイテム ／ /heal … 回復 ／ /clear … 敵を消す ／ /pos … いまの場所'],
+  show(on, pre) {
+    this.open = on; const bar = $('cmdbar'), inp = $('cmd-input');
+    bar.classList.toggle('hidden', !on);
+    if (on) { if (Input.locked) { Screens.suppressUnlock = true; Input.unlock(); } inp.value = pre || ''; setTimeout(() => inp.focus(), 0); }
+    else { inp.blur(); window.focus(); Input.lock(); }
+  },
+  usable() { return Game.free && Game.running && Game.ready && !player.dead && !Screens.isOpen() && !Quiz.active; },
+  num(tok, base) {   // 数、または ~（いまの位置から）
+    if (tok === undefined) return NaN;
+    if (tok[0] === '~') { const d = tok.length > 1 ? parseFloat(tok.slice(1)) : 0; return base + (isNaN(d) ? NaN : d); }
+    return parseFloat(tok);
+  },
+  findItem(q) {
+    const low = q.toLowerCase(); let it = Items.get(low) || Items.list.find(i => i.displayName === q);
+    if (it) return it;
+    const hits = Items.list.filter(i => i.name.includes(low) || i.displayName.includes(q));
+    return hits.length === 1 ? hits[0] : (hits.length ? { many: hits.slice(0, 6).map(i => i.displayName + '(' + i.name + ')').join('、') } : null);
+  },
+  run(line) {
+    const a = line.trim().replace(/^\//, '').split(/\s+/).filter(Boolean); if (!a.length) return;
+    const cmd = a[0].toLowerCase(), p = player, say = (t) => HUD.message(t);
+    if (cmd === 'help' || cmd === '?') { this.HELP.forEach(say); return; }
+    if (cmd === 'pos') { say(`📍 x ${p.x.toFixed(1)} / y ${p.y.toFixed(1)} / z ${p.z.toFixed(1)}`); return; }
+    if (cmd === 'heal') { p.health = p.maxHealth; p.hunger = 20; p.saturation = 5; say('❤️ 回復したよ'); return; }
+    if (cmd === 'clear') { let n = 0; for (const m of Mobs.list.slice()) if (!m.dead && m.def.hostile) { Mobs.remove(m); n++; } say('🧹 敵を ' + n + '体 消したよ'); return; }
+    if (cmd === 'time') {
+      const T = { day: 1000, sunrise: 0, noon: 6000, sunset: 12000, night: 15000, midnight: 18000 }, v = a[1];
+      const t = v in T ? T[v] : parseInt(v);
+      if (isNaN(t) || t < 0 || t > 23999) { say('使い方：/time day|noon|sunset|night|midnight|0〜23999'); return; }
+      Sky.time = t; say('🕐 時間を かえたよ（' + Sky.clockString() + '）'); return;
+    }
+    if (cmd === 'weather') {
+      if (a[1] !== 'clear' && a[1] !== 'rain') { say('使い方：/weather clear|rain'); return; }
+      Weather.raining = a[1] === 'rain'; Weather.timer = 4000 + rng.int(8000); if (!Weather.raining) Weather.amount = 0;
+      say(Weather.raining ? '🌧 雨にしたよ' : '☀️ 晴れにしたよ'); return;
+    }
+    if (cmd === 'tp') {
+      let x, y, z;
+      if (a[1] === 'spawn' || a[1] === 'home') { [x, y, z] = p.spawn; }
+      else if (a.length === 3) { x = this.num(a[1], p.x); z = this.num(a[2], p.z); }
+      else if (a.length === 4) { x = this.num(a[1], p.x); y = this.num(a[2], p.y); z = this.num(a[3], p.z); }
+      else { say('使い方：/tp x y z　／　/tp x z　／　/tp spawn'); return; }
+      if (isNaN(x) || isNaN(z) || (y !== undefined && isNaN(y))) { say('数字で 入れてね（例：/tp 100 70 -50）'); return; }
+      if (y === undefined) { if (world.isLoaded(Math.floor(x), Math.floor(z))) y = world.getHeight(Math.floor(x), Math.floor(z)) + 1; else { y = 130; p.flying = true; } }
+      p.x = x; p.y = y; p.z = z; p.vx = p.vy = p.vz = 0; ChunkManager.needsScan = true;
+      say('✨ テレポート！ x ' + x.toFixed(0) + ' / y ' + y.toFixed(0) + ' / z ' + z.toFixed(0)); return;
+    }
+    if (cmd === 'give') {
+      const name = a[1]; if (!name) { say('使い方：/give アイテム名 [数]　例：/give diamond 10'); return; }
+      const it = this.findItem(name);
+      if (!it) { say('そんなアイテムは ないよ：' + name); return; }
+      if (it.many) { say('どれかな？ ' + it.many); return; }
+      const n = Math.max(1, Math.min(999, parseInt(a[2]) || 1));
+      const left = Inventory.addToPlayer({ name: it.name, count: n });
+      if (left > 0) Entities.spawnItem(p.x, p.y + 1, p.z, { name: it.name, count: left });
+      say('🎁 ' + it.displayName + ' ×' + n); return;
+    }
+    say('そんなコマンドは ないよ。/help で 一覧を見てね');
+  },
+  init() {
+    const inp = $('cmd-input');
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); const t = inp.value; this.show(false); try { this.run(t); } catch (err) { HUD.message('エラー：' + err.message); } }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.show(false); }
+    });
+    Events.on('keypress', (code, e) => {
+      if (this.open || !this.usable()) return;
+      if (code === 'Slash') { if (e) e.preventDefault(); this.show(true, '/'); }
+      else if (code === 'Enter') { if (e) e.preventDefault(); this.show(true, ''); }
+    });
+  }
+};
+
 /* ---- 視点の速さ（キーボードモード）：Chromebook のタッチパッドでも、ゆったり まわせるように ---- */
 const Sens = {
   v: 18, mult: 1.8,   // v は 10 で 1.0 倍（5〜50）
@@ -4483,7 +4567,7 @@ const Menus = {
     $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) Save.importFile(e.target.files[0]); e.target.value = ''; });
     $('btn-mode').addEventListener('click', () => Game.toggleMode());
     $('btn-newworld').addEventListener('click', () => { Save.save(true); Game.stop(); });
-    Sens.init();
+    Sens.init(); Cmd.init();
     $('rd-slider').addEventListener('input', (e) => { ChunkManager.setRenderDistance(parseInt(e.target.value)); $('rd-val').textContent = e.target.value; });
     $('btn-respawn').addEventListener('click', () => Player.respawn());
     Events.on('unlock', () => {
