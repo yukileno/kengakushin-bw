@@ -3281,7 +3281,7 @@ const Screens = {
       if (Player.isCreative()) { this.current = 'creative'; this.render(); return; }
       html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>クラフト（つくる）</h2><div style="font-size:11px;margin:-4px 0 6px">もって クリックすると、1つずつ ならべるよ</div><div class="row">${this.gridHTML('craft2', 4, 2)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
     } else if (t === 'crafting') {
-      html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>作業台</h2><div style="font-size:11px;margin:-4px 0 6px">もって クリックすると、1つずつ ならべるよ</div><div class="row">${this.gridHTML('craft9', 9, 3)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
+      html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>作業台</h2>${Game.free ? '<button class="btn small" id="btn-to-catalog" style="float:right;margin-right:6px">← すべてのアイテム</button>' : ''}<div style="font-size:11px;margin:-4px 0 6px">もって クリックすると、1つずつ ならべるよ</div><div class="row">${this.gridHTML('craft9', 9, 3)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
     } else if (t === 'furnace') {
       const tile = world.getTile(this.data.x, this.data.y, this.data.z);
       this.containers.fin = { get 0() { return tile.input; }, set 0(v) { tile.input = v; }, length: 1 };
@@ -3297,11 +3297,13 @@ const Screens = {
       const tabs = ['blocks', 'materials', 'tools', 'food', 'misc'].map(n => `<button class="btn small ${n === this.tab ? 'sel' : ''}" data-tab="${n}">${{blocks:'ブロック',materials:'素材',tools:'どうぐ',food:'食べもの',misc:'そのほか'}[n]}</button>`).join('');
       const list = Items.list.filter(it => it.creativeTab === this.tab);
       this.containers.catalog = list.map(it => ({ name: it.name, count: it.stack }));
-      html = `<h2>フリーモード：すべてのアイテム</h2><div class="row">${tabs}<span style="font-size:11px">クリックで とる ・ もっている状態でクリックで すてる</span></div><div class="catalog">${list.map((it, i) => this.slotHTML('catalog', i)).join('')}</div>${this.playerInvHTML()}`;
+      html = `<h2>フリーモード：すべてのアイテム</h2><div class="row">${tabs}<button class="btn small" id="btn-to-craft">🔨 クラフト（作業台）</button><span style="font-size:11px">クリックで とる ・ もっている状態でクリックで すてる</span></div><div class="catalog">${list.map((it, i) => this.slotHTML('catalog', i)).join('')}</div>${this.playerInvHTML()}`;
     }
     P.innerHTML = html;
     P.onclick = null;
     const rb = $('btn-recipes'); if (rb) rb.addEventListener('click', () => RecipeBook.open());
+    const toCraft = $('btn-to-craft'); if (toCraft) toCraft.addEventListener('click', () => { this.current = 'crafting'; this.data = null; this.render(); });
+    const toCat = $('btn-to-catalog'); if (toCat) toCat.addEventListener('click', () => { this.current = 'creative'; this.render(); });
     P.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.render(); }));
     P.querySelectorAll('.slot').forEach(el => {
       el.addEventListener('mousedown', (e) => { e.preventDefault(); this.onSlot(el.dataset.c, +el.dataset.i, e.button, e.shiftKey); });
@@ -4951,15 +4953,22 @@ const UpdateCheck = {
     try { sessionStorage.setItem('kgkbw_upd', String(Date.now())); } catch (e) { /* ignore */ }
     this.notified = true;
     if (!Game.running) { this.go(); return; }
+    if (this.teacherMode) { this.banner(); return; }
     // ブロック学習している最中は マウスがロックされていてボタンをおせないので、ボタンなしで自動で更新する（セーブは beforeunload でされる）
     try { HUD.message('🆕 新しいバージョン！ 自動で更新するよ…'); } catch (e) { /* ignore */ }
     setTimeout(() => this.go(), 1500);
   },
   // キャッシュをさけるため、毎回ちがうURLで読みこみなおす
+  banner() {
+    const b = document.createElement('div'); b.className = 'update-bar';
+    b.innerHTML = '🆕 新しいバージョンが あるよ（いまの建築は セーブされないよ） <button class="btn small" id="upd-go">いま更新する</button> <button class="btn small" id="upd-no">あとで</button>';
+    $('app').appendChild(b);
+    $('upd-go').onclick = () => this.go(); $('upd-no').onclick = () => b.remove();
+  },
   url() { return location.pathname + '?r=' + Date.now() + location.hash; },   // #teacher など、# 以降は引きつぐ
   go() { location.replace(this.url()); },
   init() {
-    if (location.hash === '#teacher') return;   // 先生用（#teacher）では、自動で再読みこみしない
+    this.teacherMode = location.hash === '#teacher';   // 先生用：あそんでいる最中は、自動で再読みこみせず、お知らせだけ出す（フリーモードの建築が消えないように）
     this.check();
     setInterval(() => this.check(), 3 * 60 * 1000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) this.check(); });
