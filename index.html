@@ -3269,9 +3269,9 @@ const Screens = {
     let html = '';
     if (t === 'inventory') {
       if (Player.isCreative()) { this.current = 'creative'; this.render(); return; }
-      html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>クラフト（つくる）</h2><div class="row">${this.gridHTML('craft2', 4, 2)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
+      html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>クラフト（つくる）</h2><div style="font-size:11px;margin:-4px 0 6px">もって クリックすると、1つずつ ならべるよ</div><div class="row">${this.gridHTML('craft2', 4, 2)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
     } else if (t === 'crafting') {
-      html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>作業台</h2><div class="row">${this.gridHTML('craft9', 9, 3)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
+      html = `<button class="btn small recipe-btn" id="btn-recipes">📖 レシピ</button><h2>作業台</h2><div style="font-size:11px;margin:-4px 0 6px">もって クリックすると、1つずつ ならべるよ</div><div class="row">${this.gridHTML('craft9', 9, 3)}<div class="arrow"><i></i></div>${this.slotHTML('result', 0, 'result')}</div>${this.playerInvHTML()}`;
     } else if (t === 'furnace') {
       const tile = world.getTile(this.data.x, this.data.y, this.data.z);
       this.containers.fin = { get 0() { return tile.input; }, set 0(v) { tile.input = v; }, length: 1 };
@@ -3295,8 +3295,8 @@ const Screens = {
     P.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.render(); }));
     P.querySelectorAll('.slot').forEach(el => {
       el.addEventListener('mousedown', (e) => { e.preventDefault(); this.onSlot(el.dataset.c, +el.dataset.i, e.button, e.shiftKey); });
-      el.addEventListener('mouseenter', () => this.showTooltip(el));
-      el.addEventListener('mouseleave', () => { $('tooltip').style.display = 'none'; });
+      el.addEventListener('mouseenter', () => { this.hover = el; this.showTooltip(el); });
+      el.addEventListener('mouseleave', () => { if (this.hover === el) this.hover = null; $('tooltip').style.display = 'none'; });
     });
     this.refresh();
   },
@@ -3361,7 +3361,12 @@ const Screens = {
           if (c === 'result') { this.consumeCraft(); this.updateResult(); } else { cont[0] = null; }
         }
       } else {
-        if (this.cursor && !(Inventory.canMerge(this.cursor, s) && this.cursor.count + s.count <= Inventory.maxStack(s.name))) return;
+        if (this.cursor && !(Inventory.canMerge(this.cursor, s) && this.cursor.count + s.count <= Inventory.maxStack(s.name))) {
+          // 手に のこりを持ったまま結果をとろうとしたとき：のこりを、もちものに もどしてから、とる
+          const left = Inventory.add(player.inventory, { name: this.cursor.name, count: this.cursor.count, dur: this.cursor.dur });
+          if (left > 0) { this.cursor.count = left; this.refresh(); return; }
+          this.cursor = null;
+        }
         if (this.cursor) this.cursor.count += s.count; else this.cursor = { name: s.name, count: s.count };
         if (c === 'result') this.consumeCraft(); else cont[0] = null;
       }
@@ -3378,7 +3383,11 @@ const Screens = {
       if (left === 0) cont[i] = null; else s.count = left;
       this.refresh(); return;
     }
-    if (button === 0) {
+    const isGrid = c === 'craft2' || c === 'craft9';   // 作ったり つかったりする ならべる枠は、1つずつ ならべる
+    if (button === 0 && isGrid && this.cursor && (!s || Inventory.canMerge(this.cursor, s))) {
+      if (!s) cont[i] = { name: this.cursor.name, count: 1, dur: this.cursor.dur }; else if (s.count < Inventory.maxStack(s.name)) s.count++; else { this.refresh(); return; }
+      this.cursor.count--; if (this.cursor.count <= 0) this.cursor = null;
+    } else if (button === 0) {
       if (!this.cursor) { if (s) { cont[i] = null; this.cursor = s; } }
       else if (!s) { cont[i] = this.cursor; this.cursor = null; }
       else if (Inventory.canMerge(this.cursor, s)) { const max = Inventory.maxStack(s.name); const n = Math.min(max - s.count, this.cursor.count); s.count += n; this.cursor.count -= n; if (this.cursor.count <= 0) this.cursor = null; }
@@ -3395,6 +3404,7 @@ const Screens = {
     $('screen').addEventListener('mousedown', (e) => { if (e.target === $('screen')) this.close(); });
     Events.on('keypress', (code) => {
       if (code === 'KeyE') { if (this.isOpen()) this.close(); else if (Game.running && !Game.paused && !player.dead) this.open('inventory'); }
+      else if (code === 'KeyN' && this.isOpen() && this.hover && this.hover.isConnected) this.onSlot(this.hover.dataset.c, +this.hover.dataset.i, 2, false);   // 枠の上で N ＝ 右クリック（1つ置く・半分とる）
       else if (code === 'Escape' && this.isOpen()) { if (RecipeBook.isOpen()) RecipeBook.close(); else this.close(); }
     });
     Events.on('atlasRebuilt', () => { if (this.isOpen()) this.refresh(); HUD.refreshHotbar(); });
