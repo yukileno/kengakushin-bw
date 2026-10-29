@@ -292,7 +292,7 @@
     <div class="panel">
       <div id="title-logo">思考力育成ブロックワールド</div>
       <div id="title-sub">もんだいを といて、ざいりょうを あつめよう！ サバイバル</div>
-      <div id="flow"><b>✏️ もんだいを とく</b>→<b>🎁 ざいりょうを ゲット</b>→<b>⛏️ 10びょう ブロック学習</b></div>
+      <div id="flow"><b>✏️ もんだいを とく</b>→<b>🎁 ざいりょうを ゲット</b>→<b>⛏️ ブロック学習</b></div>
       <div class="row"><button class="btn big" id="btn-title-quiz">✏️ もんだいを とく</button></div>
       <div class="row">
         <button class="btn big" id="btn-play">⛏️ あたらしく はじめる</button>
@@ -4735,7 +4735,7 @@ const Game = {
    UpdateCheck : 開きっぱなしのタブに新しいバージョンを知らせる
    ========================================================================== */
 const BW2 = {
-  sec: 0, MAX: 180, PER_Q: 10, KINDS: 5, pending: {},
+  sec: 0, MAX: 180, PER_Q: 10, PER: { '算数': 15, '国語': 5, '社会': 5 }, secFor(sub) { return this.PER[sub] || this.PER_Q; }, KINDS: 5, pending: {},
   // 教科ごとに出る素材がちがう。[アイテム名, 個数, 出やすさ]
   TABLES: {
     '算数': [['oak_log', 3, 12], ['birch_log', 3, 8], ['spruce_log', 3, 8], ['cobblestone', 5, 14], ['coal', 3, 11], ['iron_ore', 2, 10], ['sand', 4, 6], ['dirt', 4, 6], ['flint', 2, 2]],   // 道具・家づくり
@@ -4755,7 +4755,7 @@ const BW2 = {
     }
     return out;
   },
-  state() { return { sec: Math.floor(this.sec), max: this.MAX, per: this.PER_Q, got: Object.keys(this.pending).map(n => ({ name: Items.get(n).displayName, count: this.pending[n] })) }; },
+  state() { return { sec: Math.floor(this.sec), max: this.MAX, per: this.PER_Q, perBy: this.PER, got: Object.keys(this.pending).map(n => ({ name: Items.get(n).displayName, count: this.pending[n] })) }; },
   /** 正解した数(units)だけ、素材（1問ごとに5種類）と +10秒（さいだい3分）をわたす。quiz から呼ばれる */
   reward(units, sub) {
     const got = {}; let added = 0;
@@ -4765,7 +4765,7 @@ const BW2 = {
         if (left > 0) Entities.spawnItem(player.x, player.y + 1, player.z, { name: r.item, count: left });
         got[r.item] = (got[r.item] || 0) + r.count; this.pending[r.item] = (this.pending[r.item] || 0) + r.count;
       }
-      const next = Math.min(this.MAX, this.sec + this.PER_Q); added += next - this.sec; this.sec = next;
+      const next = Math.min(this.MAX, this.sec + this.secFor(sub)); added += next - this.sec; this.sec = next;
     }
     this.persist(true);
     return { got: Object.keys(got).map(n => ({ name: Items.get(n).displayName, count: got[n] })), added: Math.round(added), full: this.sec >= this.MAX };
@@ -4895,7 +4895,7 @@ const Quiz = {
     $('quiz-overlay').classList.add('hidden');
     Game.paused = false; $('pause').classList.add('hidden');
     window.focus();
-    if (this.tips) { this.tips = false; HUD.message(Game.touch ? '🌳 まず 木を長押しして「原木」をあつめよう' : '🌳 まず 木をたたいて「原木」をあつめよう（Mキーをおしつづける）'); HUD.message(Game.touch ? '📦 🎒ボタンで もちもの。原木 → 木材 → 作業台 → ツルハシ！' : '📦 Eキーで もちもの。原木 → 木材 → 作業台 → ツルハシ！'); HUD.message('✏️ 時間がなくなると もんだいが出るよ（Tキーでも開けるよ）。とくと 素材と時間（10びょう）がもらえる！'); }
+    if (this.tips) { this.tips = false; HUD.message(Game.touch ? '🌳 まず 木を長押しして「原木」をあつめよう' : '🌳 まず 木をたたいて「原木」をあつめよう（Mキーをおしつづける）'); HUD.message(Game.touch ? '📦 🎒ボタンで もちもの。原木 → 木材 → 作業台 → ツルハシ！' : '📦 Eキーで もちもの。原木 → 木材 → 作業台 → ツルハシ！'); HUD.message('✏️ 時間がなくなると もんだいが出るよ（Tキーでも開けるよ）。とくと 素材と時間がもらえる！'); }
     const keys = Object.keys(BW2.pending);
     Gift.check(); Save.save(true);   // 正解でもらった素材を、すぐ保存
     if (keys.length) { HUD.message('🎁 ゲット: ' + keys.map(n => Items.get(n).displayName + ' ×' + BW2.pending[n]).join('、')); BW2.pending = {}; }

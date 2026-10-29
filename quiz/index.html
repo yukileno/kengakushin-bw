@@ -311,10 +311,10 @@ function updateBar() {
   const g = GAME(), bar = $('#gbar'); if (!bar) return;
   bar.classList.toggle('on', !!g); if (!g) return;
   let st = { sec: 0, max: 180, per: 10, got: [] }; try { st = g.state(); } catch (e) { /* ゲームが読めないときは0 */ }
-  const full = st.sec >= st.max, left = Math.ceil((st.max - st.sec) / st.per);
+  const full = st.sec >= st.max, rest = st.max - st.sec, by = st.perBy || {}, n = k => Math.ceil(rest / (by[k] || st.per));
   $('#gtime').textContent = '⏱ ' + mmss(st.sec) + ' / ' + mmss(st.max);
   $('#gplay').disabled = !full;   // 3分たまらないと ブロック学習には入れない（3分になっても自動では入らない。ボタンをおす）
-  $('#gnote').textContent = full ? '3分たまったよ！ ボタンで ブロック学習へ。もっと 問題を といて 素材を あつめてもOK' : `あと ${left}問 せいかいで 3分！ ためてから ブロック学習に入ろう`;
+  $('#gnote').textContent = full ? '3分たまったよ！ ボタンで ブロック学習へ。もっと 問題を といて 素材を あつめてもOK' : `3分まで あと ${rest}びょう（算数なら ${n('算数')}問、国語・社会なら ${n('国語')}問）`;
   const got = st.got || [], gi = $('#gitems');
   gi.classList.toggle('on', got.length > 0);
   gi.innerHTML = got.length ? '<b>🎁 あつめた素材</b>' + got.map(x => `<span class="chip">${esc(x.name)} ×${x.count}</span>`).join('') : '';
@@ -372,7 +372,7 @@ function home() {
   <div class="homewrap">
     <h1>思考力育成ブロックワールド</h1>
     ${teacherOn() ? '<div class="tmode">先生モード中（スキップボタンあり・ぜんぶの教科を出しています）　<a href="#teacher" id="tmoff">オフにする</a></div>' : ''}
-    <p class="lead">やりたい 教科を 押してね。1問 正解すると、ブロックワールドで 10びょう ブロック学習できるよ！</p>
+    <p class="lead">やりたい 教科を 押してね。正解すると ブロック学習の時間がふえるよ（算数は15びょう、国語・社会は5びょう）。3分ためてから ブロック学習に入ろう！</p>
     ${sec('基礎', BASIC)}${sec('発展', ['しりょう'])}${sec('挑戦', ['じっくり'])}
   </div>`;
   app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { const sub = b.dataset.sub; if (isLocked(sub)) return; sub === 'じっくり' ? jkList() : begin(sub); });
