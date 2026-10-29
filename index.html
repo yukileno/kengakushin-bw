@@ -4635,7 +4635,7 @@ const Game = {
     HUD.refreshHotbar();
     $('start').classList.add('hidden'); $('death').classList.add('hidden'); $('pause').classList.add('hidden');
     $('loading').classList.remove('hidden'); $('loadtext').textContent = 'ワールドを つくっているよ…';
-    BW2.sec = data && data.bw2sec ? Math.min(BW2.MAX, data.bw2sec) : 0; BW2.pending = {}; Quiz.active = false; $('quiz-overlay').classList.add('hidden');
+    BW2.sec = data ? Math.min(BW2.MAX, BW2.saved(data.bw2sec || 0)) : 0; BW2.persist(true); BW2.pending = {}; Quiz.active = false; $('quiz-overlay').classList.add('hidden');
     this.running = true; this.paused = false; this.ready = false; this.autosave = 0; $('hud').classList.remove('hidden');
     if (!this.free) this.mode = 'survival';
   },
@@ -4763,13 +4763,26 @@ const BW2 = {
       }
       const next = Math.min(this.MAX, this.sec + this.PER_Q); added += next - this.sec; this.sec = next;
     }
+    this.persist(true);
     return { got: Object.keys(got).map(n => ({ name: Items.get(n).displayName, count: got[n] })), added: Math.round(added), full: this.sec >= this.MAX };
+  },
+  /** 残り時間だけは、1秒ごとに別に保存する（ワールドのセーブは60秒ごとなので、再読みこみで古い残り時間が復活しないように） */
+  persist(force) {
+    if (Game.free) return;
+    const now = performance.now();
+    if (!force && now - (this.pt || 0) < 1000) return;
+    this.pt = now; try { localStorage.setItem('kgkbw_sec', String(Math.ceil(this.sec))); } catch (e) { /* ignore */ }
+  },
+  saved(fallback) {
+    try { const v = localStorage.getItem('kgkbw_sec'); if (v !== null && v !== '' && isFinite(+v)) return +v; } catch (e) { /* ignore */ }
+    return fallback;
   },
   /** ブロック学習している間だけ減る（もんだい・もちもの・メニュー中は減らない） */
   tick(dt) {
     if (Game.free || Quiz.active || Game.paused || !Input.locked) return; // マウスがロックされているとき（＝ブロック学習しているとき）だけ減る
     this.sec = Math.max(0, this.sec - dt);
-    if (this.sec <= 0) Quiz.open('timeup');
+    this.persist();
+    if (this.sec <= 0) { this.persist(true); Quiz.open('timeup'); }
   },
   updateHud() {
     const t = $('timer'), s = Math.ceil(this.sec);
