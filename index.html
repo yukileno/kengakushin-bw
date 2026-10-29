@@ -4757,7 +4757,7 @@ const BW2 = {
   },
   state() { return { sec: Math.floor(this.sec), max: this.MAX, per: this.PER_Q, perBy: this.PER, got: Object.keys(this.pending).map(n => ({ name: Items.get(n).displayName, count: this.pending[n] })) }; },
   /** 正解した数(units)だけ、素材（1問ごとに5種類）と +10秒（さいだい3分）をわたす。quiz から呼ばれる */
-  reward(units, sub) {
+  reward(units, sub, secs) {   // secs: 時間を教科ごとの決まりでなく、この秒数にしたいとき（じっくりの2回目以降）
     const got = {}; let added = 0;
     for (let u = 0; u < units; u++) {
       for (const r of this.rollMany(this.KINDS, sub)) {   // 1問正解ごとに、ちがう種類を KINDS こ
@@ -4765,7 +4765,7 @@ const BW2 = {
         if (left > 0) Entities.spawnItem(player.x, player.y + 1, player.z, { name: r.item, count: left });
         got[r.item] = (got[r.item] || 0) + r.count; this.pending[r.item] = (this.pending[r.item] || 0) + r.count;
       }
-      const next = Math.min(this.MAX, this.sec + this.secFor(sub)); added += next - this.sec; this.sec = next;
+      const next = Math.min(this.MAX, this.sec + (secs || this.secFor(sub))); added += next - this.sec; this.sec = next;
     }
     this.persist(true);
     return { got: Object.keys(got).map(n => ({ name: Items.get(n).displayName, count: got[n] })), added: Math.round(added), full: this.sec >= this.MAX };

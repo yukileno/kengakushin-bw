@@ -263,8 +263,8 @@ function canonical(q) { // うちなおし用の正解（きびしく判定）
 /* ---------- 記録（この端末のブラウザの中だけ） ---------- */
 const LS = 'kgkbw_stats_v1';
 function loadStats() {
-  try { const o = JSON.parse(localStorage.getItem(LS)) || {}; return { unit: o.unit || {}, q: o.q || {}, g: o.g || {}, pend: o.pend || {}, rd: o.rd || {} }; }
-  catch (e) { return { unit: {}, q: {}, g: {}, pend: {}, rd: {} }; }
+  try { const o = JSON.parse(localStorage.getItem(LS)) || {}; return { unit: o.unit || {}, q: o.q || {}, g: o.g || {}, pend: o.pend || {}, rd: o.rd || {}, jd: o.jd || {} }; }
+  catch (e) { return { unit: {}, q: {}, g: {}, pend: {}, rd: {}, jd: {} }; }
 }
 function saveStats() { try { localStorage.setItem(LS, JSON.stringify(stats)); } catch (e) { /* 保存できなくても動く */ } }
 let stats = loadStats();
@@ -319,9 +319,9 @@ function updateBar() {
   gi.classList.toggle('on', got.length > 0);
   gi.innerHTML = got.length ? '<b>🎁 あつめた素材</b>' + got.map(x => `<span class="chip">${esc(x.name)} ×${x.count}</span>`).join('') : '';
 }
-function giveReward(sub) {   // 1問 正解するたびに、ゲーム側へ「素材＋10びょう」をたのむ
+function giveReward(sub, secs) {   // 1問 正解するたびに、ゲーム側へ「素材＋10びょう」をたのむ
   const g = GAME(); let r = null;
-  try { if (g) r = g.reward(1, sub); } catch (e) { /* ゲームが読めないときは何もしない */ }
+  try { if (g) r = g.reward(1, sub, secs); } catch (e) { /* ゲームが読めないときは何もしない */ }
   updateBar();
   if (!r) return '';
   const items = r.got.map(x => `${esc(x.name)} ×${x.count}`).join('、');
@@ -606,7 +606,7 @@ function teacher() {
   app.querySelectorAll('[data-easy]').forEach(b => b.onclick = () => { lsSet('kgkbw_easy', b.dataset.easy); teacher(); });
   $('#nm').onchange = e => setName(e.target.value);
   $('#back').onclick = home; $('#csv').onclick = downloadCsv;
-  $('#reset').onclick = () => { if (confirm('きろくを全部消します（まちがい直しの待ちも消えます）。いいですか？')) { stats = { unit: {}, q: {}, g: {}, pend: {}, rd: {} }; saveStats(); teacher(); } };
+  $('#reset').onclick = () => { if (confirm('きろくを全部消します（まちがい直しの待ちも消えます）。いいですか？')) { stats = { unit: {}, q: {}, g: {}, pend: {}, rd: {}, jd: {} }; saveStats(); teacher(); } };
 }
 function downloadCsv() {
   const q = s => '"' + String(s).replace(/"/g, '""') + '"';
@@ -798,9 +798,15 @@ function jkBind() {
       if (x[0] !== 's') return; const id = 's' + (si++), v = st.fill[id]; if (v === undefined || v === '') { empty = true; allOk = false; res[id] = false; } else { const ok = st.opts[k][+v][1]; res[id] = ok; if (!ok) allOk = false; } });
     st.fb3 = { res, empty, allOk };
     if (!allOk && !empty) miss();
-    if (allOk && !JKDONE.has(p.key)) {   // はじめて完成したときだけ、記録する（1回でできたら ○、まちがいがあれば ×）
-      JKDONE.add(p.key); const ok = st.mistakes === 0;
-      bump(stats.unit, 'じっくり' + p.unit, ok); bump(stats.q, p.key, ok); st.rw = giveReward('じっくり'); saveStats();
+    if (allOk && !st.rwDone) {   // 完成するたびに、ごほうび。同じ大問は、1回目だけ60秒、2回目以降は10秒（くり返して時間をかせげないように）
+      st.rwDone = true;
+      const again = (stats.jd[p.key] || 0) > 0; stats.jd[p.key] = (stats.jd[p.key] || 0) + 1;
+      st.rw = giveReward('じっくり', again ? 10 : undefined);
+      if (!JKDONE.has(p.key)) {   // はじめて完成したときだけ、成績に記録する（1回でできたら ○、まちがいがあれば ×）
+        JKDONE.add(p.key); const ok = st.mistakes === 0;
+        bump(stats.unit, 'じっくり' + p.unit, ok); bump(stats.q, p.key, ok);
+      }
+      saveStats();
     }
     jkRender();
   });
