@@ -3628,15 +3628,15 @@ const MOB_TYPES = {
   cow:      { w: 0.45, h: 1.4,  health: 10, speed: 1.5, passive: true,  drops: [['beef', 1, 3], ['leather', 0, 2]], name: 'ウシ' },
   sheep:    { w: 0.45, h: 1.3,  health: 8,  speed: 1.5, passive: true,  drops: [['mutton', 1, 2]], name: 'ヒツジ' },
   chicken:  { w: 0.2,  h: 0.7,  health: 4,  speed: 1.7, passive: true,  drops: [['chicken', 1, 1], ['feather', 0, 2]], name: 'ニワトリ' },
-  zombie:   { w: 0.3,  h: 1.95, health: 20, speed: 2.4, hostile: true,  damage: 3, drops: [['rotten_flesh', 0, 2]], burns: true, name: 'ゾンビ' },
+  zombie:   { w: 0.3,  h: 1.95, health: 20, speed: 2.4, hostile: true,  damage: 2, drops: [['rotten_flesh', 0, 2]], burns: true, name: 'ゾンビ' },
   skeleton: { w: 0.3,  h: 1.99, health: 20, speed: 2.6, hostile: true,  ranged: true, drops: [['bone', 0, 2], ['arrow', 0, 2]], burns: true, name: 'スケルトン' },
   creeper:  { w: 0.3,  h: 1.7,  health: 20, speed: 2.6, hostile: true,  explodes: true, drops: [['gunpowder', 0, 2]], name: 'クリーパー' }
 };
 const SHEEP_COLOR_WEIGHTS = [['white', 81], ['black', 5], ['gray', 5], ['light_gray', 5], ['brown', 3], ['pink', 1]];
 
 const Mobs = {
-  HOSTILE_MAX: 6,        // 同時に いる 敵の さいだい数（元は 26。夜に出すぎないよう へらした）
-  HOSTILE_EVERY: 20,    // 敵が出るか ためす間かく（tick。20 で 1秒に1回。元は 2）
+  HOSTILE_MAX: 3,        // 同時に いる 敵の さいだい数（元は 26。夜に出すぎないよう へらした）
+  HOSTILE_EVERY: 40,    // 敵が出るか ためす間かく（tick。20 で 1秒に1回。元は 2）
   list: [], scene: null, faceTex: new Map(),
   init(scene) { this.scene = scene; },
   clear() { for (const m of this.list) this.scene.remove(m.mesh); this.list.length = 0; },
@@ -3764,10 +3764,10 @@ const Mobs = {
         const surface = c.height[(x & 15) * 16 + (z & 15)];
         const y = rng.chance(0.5) ? surface : rng.irange(5, Math.max(6, surface));
         const d = Math.sqrt(dist2(x, y, z, p.x, p.y, p.z));
-        if (d > 24 && d < 70) {
-          const type = rng.pick(['zombie', 'zombie', 'zombie', 'skeleton', 'skeleton', 'creeper']);   // クリーパーは少なめ
+        if (d > 32 && d < 70) {
+          const type = rng.pick(['zombie', 'zombie', 'zombie', 'zombie', 'skeleton', 'skeleton', 'skeleton', 'creeper']);   // クリーパーは少なめ
           if (this.canStand(x, y, z, MOB_TYPES[type]) && world.getLightLevel(x, y, z, Sky.dayFactor) < 8 && !world.getDef(x, y - 1, z).liquid) {
-            const n = rng.irange(1, 2);
+            const n = 1;   // 1回に1ぴきだけ
             for (let i = 0; i < n && hostile + i < this.HOSTILE_MAX; i++) { const sx = x + rng.irange(-2, 2), sz = z + rng.irange(-2, 2); if (this.canStand(sx, y, sz, MOB_TYPES[type])) this.spawnMob(type, sx + 0.5, y, sz + 0.5); }
           }
         }
@@ -3806,17 +3806,17 @@ const Mobs = {
       if (m.fire > 0) { m.fire--; if (m.age % 20 === 0) this.hurt(m, 1, 'fire'); if (rng.chance(0.3)) Particles.burst(m.x, m.y + m.h * 0.5, m.z, 1, [1, 0.5, 0.1], 1); }
       if (feet.id === B.cactus && m.age % 10 === 0) this.hurt(m, 1, 'cactus');
       // Behaviour
-      const canSeePlayer = !p.dead && !Player.isCreative() && dist < 24;
+      const canSeePlayer = !p.dead && !Player.isCreative() && dist < 16;   // 敵が気づく きょり（元は24）
       if (d.hostile && canSeePlayer) {
         m.state = 'chase';
         const dx = p.x - m.x, dz = p.z - m.z, hd = Math.hypot(dx, dz) || 1;
         m.yaw = Math.atan2(-dx, -dz);
         if (d.ranged) {
           if (hd < 5) { m.moveX = -dx / hd; m.moveZ = -dz / hd; } else if (hd > 9) { m.moveX = dx / hd; m.moveZ = dz / hd; } else { m.moveX = -dz / hd * 0.6; m.moveZ = dx / hd * 0.6; }
-          if (m.attackCooldown <= 0 && hd < 16 && this.lineOfSight(m)) { m.attackCooldown = 40; const ex = m.x, ey = m.y + m.h - 0.3, ez = m.z; const tx = p.x - ex, ty = p.y + 1.2 - ey + hd * 0.05, tz = p.z - ez; const l = Math.hypot(tx, ty, tz); Entities.spawnArrow(ex, ey, ez, tx / l * 24, ty / l * 24, tz / l * 24, 'skeleton', 2 + rng.int(3)); }
+          if (m.attackCooldown <= 0 && hd < 16 && this.lineOfSight(m)) { m.attackCooldown = 60; const ex = m.x, ey = m.y + m.h - 0.3, ez = m.z; const tx = p.x - ex, ty = p.y + 1.2 - ey + hd * 0.05, tz = p.z - ez; const l = Math.hypot(tx, ty, tz); Entities.spawnArrow(ex, ey, ez, tx / l * 24, ty / l * 24, tz / l * 24, 'skeleton', 1 + rng.int(2)); }
         } else if (d.explodes) {
           m.moveX = dx / hd; m.moveZ = dz / hd;
-          if (hd < 3) { if (m.fuse < 0) m.fuse = 30; } else if (hd > 6) m.fuse = -1;
+          if (hd < 3) { if (m.fuse < 0) m.fuse = 45; } else if (hd > 6) m.fuse = -1;
           if (m.fuse >= 0) { m.fuse--; if (m.fuse <= 0) { this.remove(m); Entities.explode(m.x, m.y + 0.5, m.z, 3); continue; } }
         } else {
           m.moveX = dx / hd; m.moveZ = dz / hd;
@@ -3872,7 +3872,7 @@ const Mobs = {
       if (m.type === 'skeleton') { /* arms hold the bow */ } else m.parts.arms.forEach((a, i) => { if (m.type !== 'zombie') a.rotation.x = swing * (i % 2 ? 1 : -1) * 0.8; });
       m.mesh.position.set(m.x, m.y, m.z);
       m.mesh.rotation.y = m.yaw;
-      if (m.fuse >= 0) { const s = 1 + (30 - m.fuse) / 30 * 0.25; m.mesh.scale.set(s, s, s); }
+      if (m.fuse >= 0) { const s = 1 + (45 - m.fuse) / 45 * 0.25; m.mesh.scale.set(s, s, s); }
       // Hurt flash & lighting
       if (m.hurtTimer > 0) m.hurtTimer -= dt;
       if (m.hpTimer > 0) { m.hpTimer -= dt; if (m.hpTimer <= 0) m.parts.hp.visible = false; }
@@ -4228,7 +4228,7 @@ const Sky = {
     scene.fog = new THREE.Fog(0x000000, 10, 100);
   },
   update(dt, camera, scene) {
-    if (Game.running && !Game.paused) this.time += dt * TICK_RATE;
+    if (Game.running && !Game.paused) this.time += dt * TICK_RATE * (this.dayFactor < 0.4 ? 2 : 1);   // 夜は2ばいの はやさで すぎる（夜をみじかく）
     if (this.time >= DAY_LENGTH) { this.time -= DAY_LENGTH; this.day++; }
     const t01 = this.time / DAY_LENGTH;
     const theta = t01 * Math.PI * 2 - Math.PI / 2; // 0 at noon
