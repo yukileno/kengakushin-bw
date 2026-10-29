@@ -4380,6 +4380,10 @@ const Save = {
   },
   // localStorage copy is deflated with JSZip (base64) so many chunks fit in the ~5 MB quota.
   async save(silent) {
+    if (this.busy) return false;   // 前の保存が終わっていないときは、かさねない（10秒ごとに保存するので）
+    this.busy = true; try { return await this.save1(silent); } finally { this.busy = false; }
+  },
+  async save1(silent) {
     if (Game.free) { if (!silent) HUD.message('フリーで建築のときは、セーブできないよ'); return false; }
     if (!Game.ready) { if (!silent) HUD.message('ワールドを つくっているよ。おわってから セーブしてね'); return false; }   // 読みこみ中に保存すると、からっぽのワールドで上書きしてしまう
     try {
@@ -4573,7 +4577,7 @@ const Menus = {
     $('btn-export').addEventListener('click', () => Save.exportFile());
     $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) Save.importFile(e.target.files[0]); e.target.value = ''; });
     $('btn-mode').addEventListener('click', () => Game.toggleMode());
-    $('btn-newworld').addEventListener('click', () => { Save.save(true); Game.stop(); });
+    $('btn-newworld').addEventListener('click', () => { if (Save.busy) Save.saveSync(); else Save.save(true); Game.stop(); });
     Sens.init(); Cmd.init();
     $('rd-slider').addEventListener('input', (e) => { ChunkManager.setRenderDistance(parseInt(e.target.value)); $('rd-val').textContent = e.target.value; });
     $('btn-respawn').addEventListener('click', () => Player.respawn());
@@ -4703,7 +4707,7 @@ const Game = {
         Particles.update(dt);
         Weather.update(dt);
         this.autosave += dt;
-        if (this.autosave > 60 && !this.free) { this.autosave = 0; Save.save(true); }
+        if (this.autosave > 10 && !this.free) { this.autosave = 0; Save.save(true); }   // 10秒ごとに、この端末の中だけに上書き保存（通信はしない）
       }
       // Camera
       const p = player;
@@ -4893,7 +4897,7 @@ const Quiz = {
     window.focus();
     if (this.tips) { this.tips = false; HUD.message(Game.touch ? '🌳 まず 木を長押しして「原木」をあつめよう' : '🌳 まず 木をたたいて「原木」をあつめよう（Mキーをおしつづける）'); HUD.message(Game.touch ? '📦 🎒ボタンで もちもの。原木 → 木材 → 作業台 → ツルハシ！' : '📦 Eキーで もちもの。原木 → 木材 → 作業台 → ツルハシ！'); HUD.message('✏️ 時間がなくなると もんだいが出るよ（Tキーでも開けるよ）。とくと 素材と時間（10びょう）がもらえる！'); }
     const keys = Object.keys(BW2.pending);
-    Gift.check();
+    Gift.check(); Save.save(true);   // 正解でもらった素材を、すぐ保存
     if (keys.length) { HUD.message('🎁 ゲット: ' + keys.map(n => Items.get(n).displayName + ' ×' + BW2.pending[n]).join('、')); BW2.pending = {}; }
     if (!player.dead) Input.lock();
     setTimeout(() => { if (Game.running && !Game.paused && !Input.locked && !Screens.isOpen()) HUD.message('画面をクリックすると うごかせるよ'); }, 400);
@@ -5096,6 +5100,7 @@ window.addEventListener('load', () => {
   try { Game.init(); }
   catch (e) { console.error(e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f88;position:absolute;top:0;left:0;z-index:99;background:#000;padding:8px">Startup error: ' + e.message + '\n' + e.stack + '</pre>'); }
 });
+document.addEventListener('visibilitychange', () => { if (document.hidden && Game.running && Game.ready && !Game.free) Save.saveSync(); });
 window.addEventListener('beforeunload', () => { if (Game.running && Game.ready && !Game.free) Save.saveSync(); });
 
 /* ============================================================================
