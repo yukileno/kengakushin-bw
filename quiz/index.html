@@ -372,7 +372,7 @@ function home() {
   <div class="homewrap">
     <h1>思考力育成ブロックワールド</h1>
     ${teacherOn() ? '<div class="tmode">先生モード中（スキップボタンあり・ぜんぶの教科を出しています）　<a href="#teacher" id="tmoff">オフにする</a></div>' : ''}
-    <p class="lead">やりたい 教科を 押してね。正解すると ブロック学習の時間がふえるよ（算数は15びょう、国語・社会は5びょう）。3分ためてから ブロック学習に入ろう！</p>
+    <p class="lead">やりたい 教科を 押してね。正解すると ブロック学習の時間がふえるよ（算数15びょう・国語と社会5びょう・資料の読み取り20びょう・全国学力テストへの道は1題で60びょう）。3分ためてから ブロック学習に入ろう！</p>
     ${sec('基礎', BASIC)}${sec('発展', ['しりょう'])}${sec('挑戦', ['じっくり'])}
   </div>`;
   app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { const sub = b.dataset.sub; if (isLocked(sub)) return; sub === 'じっくり' ? jkList() : begin(sub); });

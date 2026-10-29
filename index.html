@@ -4735,7 +4735,7 @@ const Game = {
    UpdateCheck : 開きっぱなしのタブに新しいバージョンを知らせる
    ========================================================================== */
 const BW2 = {
-  sec: 0, MAX: 180, PER_Q: 10, PER: { '算数': 15, '国語': 5, '社会': 5 }, secFor(sub) { return this.PER[sub] || this.PER_Q; }, KINDS: 5, pending: {},
+  sec: 0, MAX: 180, PER_Q: 10, PER: { '算数': 15, '国語': 5, '社会': 5, 'しりょう': 20, 'じっくり': 60 }, secFor(sub) { return this.PER[sub] || this.PER_Q; }, KINDS: 5, pending: {},
   // 教科ごとに出る素材がちがう。[アイテム名, 個数, 出やすさ]
   TABLES: {
     '算数': [['oak_log', 3, 12], ['birch_log', 3, 8], ['spruce_log', 3, 8], ['cobblestone', 5, 14], ['coal', 3, 11], ['iron_ore', 2, 10], ['sand', 4, 6], ['dirt', 4, 6], ['flint', 2, 2]],   // 道具・家づくり
