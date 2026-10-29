@@ -4205,7 +4205,7 @@ Blocks.byName.lever.onNeighborChange = (x, y, z) => { if (!world.isSolid(x, y - 
    ========================================================================== */
 const Sky = {
   time: 1000, dayFactor: 1, skyBright: 1, group: null, dome: null, pivot: null, stars: null, day: 0,
-  colors: { dayTop: hexToRgb('#78a7ff'), dayHor: hexToRgb('#c4dcff'), nightTop: hexToRgb('#02040c'), nightHor: hexToRgb('#0a1030'), sunset: hexToRgb('#ff8c3a') },
+  colors: { dayTop: hexToRgb('#78a7ff'), dayHor: hexToRgb('#c4dcff'), nightTop: hexToRgb('#0a1433'), nightHor: hexToRgb('#1a2858'), sunset: hexToRgb('#ff8c3a') },
   fogColor: new THREE.Color(),
   init(scene) {
     this.group = new THREE.Group(); scene.add(this.group);
@@ -4235,7 +4235,7 @@ const Sky = {
     const alt = Math.cos(theta);
     this.dayFactor = smoothstep(-0.12, 0.25, alt);
     const rain = Weather.amount;
-    this.skyBright = (0.2 + 0.8 * this.dayFactor) * (1 - 0.35 * rain); // 0.2 = moonlight floor
+    this.skyBright = (0.46 + 0.54 * this.dayFactor) * (1 - 0.3 * rain); // 0.46 = 月明かりの下限（見やすさのため、もとの0.2より明るく）
     // Colours
     const c = this.colors, sunset = Math.max(0, 1 - Math.abs(alt) / 0.22) * 0.85;
     let top = mixColor(c.nightTop, c.dayTop, this.dayFactor), hor = mixColor(c.nightHor, c.dayHor, this.dayFactor);
